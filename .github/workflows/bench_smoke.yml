@@ -1,0 +1,46 @@
+name: Benchmark Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bench-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+
+      - name: Run smoke benchmark
+        run: |
+          uv run python scripts/bench_smoke.py
+
+      - name: Run generation benchmark (quick)
+        run: |
+          uv run python scripts/bench_generate.py \
+            --gen-lens 256,512,1024 \
+            --batch-size 2 \
+            --n-repeats 2 \
+            --n-layers 2
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: scripts/results/
+          if-no-files-found: warn

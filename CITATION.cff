@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+title: "Temporal Resonance Network"
+type: software
+version: 0.1.0
+date-released: 2026-03-05
+license: Apache-2.0
+url: "https://github.com/TODO/trn"
+repository-code: "https://github.com/TODO/trn"
+keywords:
+  - sequence-model
+  - language-model
+  - rnn
+  - oscillator
+  - pytorch
+authors:
+  - name: "TRN Contributors"

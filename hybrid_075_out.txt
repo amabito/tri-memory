@@ -1,0 +1,219 @@
+
+======================================================================
+Task: copy
+======================================================================
+  vocab=32  seq_len=64  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=0.2393  val=4.0556  (29.9s)
+  [               TRN] step   100/5000  train=0.0006  val=4.2533  (100.6s)
+  [               TRN] step   200/5000  train=0.0001  val=4.4056  (363.8s)
+  [               TRN] step   500/5000  train=0.0000  val=5.5202  (976.3s)
+  [               TRN] step  1000/5000  train=0.0000  val=6.3653  (1332.0s)
+  [               TRN] step  2000/5000  train=0.0000  val=6.4302  (1734.4s)
+  [               TRN] step  5000/5000  train=0.0000  val=7.0039  (2680.7s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=14.2291  val=48.6369  (3.8s)
+  [                TF] step   100/5000  train=0.1286  val=44.2381  (7.6s)
+  [                TF] step   200/5000  train=0.0000  val=62.7318  (16.9s)
+  [                TF] step   500/5000  train=0.0000  val=64.6652  (50.6s)
+  [                TF] step  1000/5000  train=0.0000  val=67.7853  (108.7s)
+  [                TF] step  2000/5000  train=0.0000  val=61.8107  (239.3s)
+  [                TF] step  5000/5000  train=0.0000  val=36.0058  (674.9s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=0.1461  val=4.6087  (27.8s)
+  [       Hybrid(0.8)] step   100/5000  train=0.0009  val=4.8680  (50.5s)
+  [       Hybrid(0.8)] step   200/5000  train=0.0002  val=5.2094  (94.0s)
+  [       Hybrid(0.8)] step   500/5000  train=0.0000  val=5.7704  (202.9s)
+  [       Hybrid(0.8)] step  1000/5000  train=0.0000  val=6.3083  (374.9s)
+  [       Hybrid(0.8)] step  2000/5000  train=0.0000  val=6.6037  (713.2s)
+  [       Hybrid(0.8)] step  5000/5000  train=0.0000  val=7.4532  (1625.9s)
+
+  Saved: scripts\results\hybrid_075\copy_seq_curves.csv
+
+======================================================================
+Task: counting
+======================================================================
+  vocab=64  seq_len=16  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=4.3120  val=4.3193  (3.4s)
+  [               TRN] step   100/5000  train=4.1898  val=4.2451  (6.8s)
+  [               TRN] step   200/5000  train=4.0865  val=4.1822  (13.4s)
+  [               TRN] step   500/5000  train=4.0015  val=4.1489  (32.6s)
+  [               TRN] step  1000/5000  train=3.1252  val=4.4886  (64.4s)
+  [               TRN] step  2000/5000  train=0.5848  val=5.8985  (127.8s)
+  [               TRN] step  5000/5000  train=0.2745  val=6.9360  (317.8s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=33.7448  val=32.1833  (2.4s)
+  [                TF] step   100/5000  train=4.7423  val=4.6391  (4.6s)
+  [                TF] step   200/5000  train=4.1350  val=4.1535  (9.0s)
+  [                TF] step   500/5000  train=4.0482  val=4.1566  (21.9s)
+  [                TF] step  1000/5000  train=3.9662  val=4.2087  (43.4s)
+  [                TF] step  2000/5000  train=3.2903  val=5.0599  (86.7s)
+  [                TF] step  5000/5000  train=0.3566  val=19.3917  (212.9s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=4.3337  val=4.3179  (3.1s)
+  [       Hybrid(0.8)] step   100/5000  train=4.2092  val=4.2243  (6.2s)
+  [       Hybrid(0.8)] step   200/5000  train=4.0482  val=4.1689  (12.1s)
+  [       Hybrid(0.8)] step   500/5000  train=3.9227  val=4.1844  (29.6s)
+  [       Hybrid(0.8)] step  1000/5000  train=2.6614  val=4.6429  (58.5s)
+  [       Hybrid(0.8)] step  2000/5000  train=0.5005  val=6.1747  (115.9s)
+  [       Hybrid(0.8)] step  5000/5000  train=0.2741  val=7.1828  (289.3s)
+
+  Saved: scripts\results\hybrid_075\counting_seq_curves.csv
+
+======================================================================
+Task: reverse
+======================================================================
+  vocab=64  seq_len=16  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=4.3200  val=4.2460  (3.3s)
+  [               TRN] step   100/5000  train=4.1192  val=4.1701  (6.6s)
+  [               TRN] step   200/5000  train=4.0318  val=4.1195  (13.0s)
+  [               TRN] step   500/5000  train=3.9182  val=4.0809  (31.9s)
+  [               TRN] step  1000/5000  train=3.1062  val=4.3657  (63.1s)
+  [               TRN] step  2000/5000  train=0.6148  val=5.6988  (125.7s)
+  [               TRN] step  5000/5000  train=0.2663  val=6.7096  (318.7s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=32.1797  val=30.3942  (2.5s)
+  [                TF] step   100/5000  train=4.4006  val=4.5074  (4.9s)
+  [                TF] step   200/5000  train=4.0939  val=4.0861  (9.3s)
+  [                TF] step   500/5000  train=3.7745  val=3.9681  (22.2s)
+  [                TF] step  1000/5000  train=1.8777  val=2.0277  (43.6s)
+  [                TF] step  2000/5000  train=1.3358  val=2.6404  (108.0s)
+  [                TF] step  5000/5000  train=0.2743  val=8.5216  (376.1s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=4.3023  val=4.2325  (6.6s)
+  [       Hybrid(0.8)] step   100/5000  train=4.0663  val=4.1377  (13.3s)
+  [       Hybrid(0.8)] step   200/5000  train=3.9667  val=4.0836  (19.6s)
+  [       Hybrid(0.8)] step   500/5000  train=3.5135  val=4.0486  (36.3s)
+  [       Hybrid(0.8)] step  1000/5000  train=2.4020  val=4.4139  (63.8s)
+  [       Hybrid(0.8)] step  2000/5000  train=0.4810  val=5.8350  (130.9s)
+  [       Hybrid(0.8)] step  5000/5000  train=0.2736  val=6.8005  (326.1s)
+
+  Saved: scripts\results\hybrid_075\reverse_seq_curves.csv
+
+======================================================================
+Task: induction
+======================================================================
+  vocab=64  seq_len=32  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=4.2614  val=4.2707  (11.9s)
+  [               TRN] step   100/5000  train=4.1862  val=4.1968  (23.9s)
+  [               TRN] step   200/5000  train=4.1084  val=4.1508  (47.9s)
+  [               TRN] step   500/5000  train=4.0634  val=4.1150  (119.6s)
+  [               TRN] step  1000/5000  train=3.5422  val=4.3857  (240.6s)
+  [               TRN] step  2000/5000  train=1.2331  val=5.6166  (510.9s)
+  [               TRN] step  5000/5000  train=0.1655  val=7.4646  (1423.2s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=32.9855  val=31.5702  (3.7s)
+  [                TF] step   100/5000  train=4.5623  val=4.4980  (7.6s)
+  [                TF] step   200/5000  train=4.1273  val=4.1401  (15.2s)
+  [                TF] step   500/5000  train=4.0975  val=4.1324  (37.2s)
+  [                TF] step  1000/5000  train=4.0586  val=4.1589  (74.2s)
+  [                TF] step  2000/5000  train=3.7360  val=4.4436  (144.1s)
+  [                TF] step  5000/5000  train=1.9005  val=9.4352  (353.6s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=4.2821  val=4.2657  (10.8s)
+  [       Hybrid(0.8)] step   100/5000  train=4.1748  val=4.1797  (21.6s)
+  [       Hybrid(0.8)] step   200/5000  train=4.0909  val=4.1283  (42.5s)
+  [       Hybrid(0.8)] step   500/5000  train=4.0468  val=4.1164  (111.6s)
+  [       Hybrid(0.8)] step  1000/5000  train=3.4208  val=4.4644  (221.6s)
+  [       Hybrid(0.8)] step  2000/5000  train=1.0449  val=5.7579  (430.5s)
+  [       Hybrid(0.8)] step  5000/5000  train=0.1587  val=7.6282  (920.1s)
+
+  Saved: scripts\results\hybrid_075\induction_seq_curves.csv
+
+======================================================================
+Task: assoc_recall
+======================================================================
+  vocab=64  seq_len=32  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=1.3400  val=1.3576  (11.3s)
+  [               TRN] step   100/5000  train=1.2299  val=1.2412  (22.7s)
+  [               TRN] step   200/5000  train=1.0865  val=1.1080  (46.2s)
+  [               TRN] step   500/5000  train=1.0185  val=1.0452  (113.9s)
+  [               TRN] step  1000/5000  train=0.8209  val=1.0573  (218.7s)
+  [               TRN] step  2000/5000  train=0.3599  val=1.4185  (422.5s)
+  [               TRN] step  5000/5000  train=0.1498  val=1.7397  (1367.8s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=11.5782  val=11.1562  (4.1s)
+  [                TF] step   100/5000  train=1.6879  val=1.6369  (8.1s)
+  [                TF] step   200/5000  train=1.0683  val=1.0822  (16.0s)
+  [                TF] step   500/5000  train=0.9923  val=1.0219  (38.8s)
+  [                TF] step  1000/5000  train=0.9158  val=1.0228  (76.5s)
+  [                TF] step  2000/5000  train=0.7217  val=1.2364  (157.0s)
+  [                TF] step  5000/5000  train=0.1747  val=3.6252  (355.5s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=1.3495  val=1.3489  (8.7s)
+  [       Hybrid(0.8)] step   100/5000  train=1.1282  val=1.1487  (19.3s)
+  [       Hybrid(0.8)] step   200/5000  train=1.0179  val=1.0624  (40.6s)
+  [       Hybrid(0.8)] step   500/5000  train=0.9581  val=1.0308  (94.9s)
+  [       Hybrid(0.8)] step  1000/5000  train=0.6636  val=1.0844  (161.6s)
+  [       Hybrid(0.8)] step  2000/5000  train=0.1940  val=1.4697  (298.1s)
+  [       Hybrid(0.8)] step  5000/5000  train=0.1486  val=1.6796  (638.4s)
+
+  Saved: scripts\results\hybrid_075\assoc_recall_seq_curves.csv
+
+======================================================================
+Task: selective
+======================================================================
+  vocab=32  seq_len=10  d_model=128  n_layers=4  n_osc=64  trn_ratio=0.75
+
+  -- Training TRN --
+  [               TRN] step    50/5000  train=3.2598  val=3.2609  (1.3s)
+  [               TRN] step   100/5000  train=3.2393  val=3.2103  (2.6s)
+  [               TRN] step   200/5000  train=3.1512  val=3.1568  (5.2s)
+  [               TRN] step   500/5000  train=2.9027  val=2.9119  (13.0s)
+  [               TRN] step  1000/5000  train=2.7895  val=2.7931  (25.6s)
+  [               TRN] step  2000/5000  train=2.7645  val=2.7730  (49.3s)
+  [               TRN] step  5000/5000  train=2.7641  val=2.7667  (119.6s)
+
+  -- Training TF --
+  [                TF] step    50/5000  train=30.1533  val=28.5955  (0.7s)
+  [                TF] step   100/5000  train=3.2682  val=3.3441  (1.4s)
+  [                TF] step   200/5000  train=2.8443  val=2.8353  (2.8s)
+  [                TF] step   500/5000  train=2.8815  val=2.8493  (6.8s)
+  [                TF] step  1000/5000  train=2.8339  val=2.8131  (13.7s)
+  [                TF] step  2000/5000  train=2.7896  val=2.7881  (27.2s)
+  [                TF] step  5000/5000  train=2.7685  val=2.7731  (67.1s)
+
+  -- Training Hybrid(0.8) --
+  [       Hybrid(0.8)] step    50/5000  train=3.2202  val=3.2318  (1.1s)
+  [       Hybrid(0.8)] step   100/5000  train=3.1589  val=3.1973  (2.3s)
+  [       Hybrid(0.8)] step   200/5000  train=3.1422  val=3.1277  (4.5s)
+  [       Hybrid(0.8)] step   500/5000  train=2.9281  val=2.9609  (10.8s)
+  [       Hybrid(0.8)] step  1000/5000  train=2.7705  val=2.7870  (21.2s)
+  [       Hybrid(0.8)] step  2000/5000  train=2.7654  val=2.7710  (42.1s)
+  [       Hybrid(0.8)] step  5000/5000  train=2.7672  val=2.7661  (106.2s)
+
+  Saved: scripts\results\hybrid_075\selective_seq_curves.csv
+
+====================================================================================
+Summary  |  steps=5000  d_model=128  n_layers=4
+====================================================================================
+task                           TRN                  TF         Hybrid(0.8)    best
+------------------------------------------------------------------------------------
+copy                        7.0039             36.0058              7.4532     TRN
+counting                    6.9360             19.3917              7.1828     TRN
+reverse                     6.7096              8.5216              6.8005     TRN
+induction                   7.4646              9.4352              7.6282     TRN
+assoc_recall                1.7397              3.6252              1.6796Hybrid(0.8)
+selective                   2.7667              2.7731              2.7661Hybrid(0.8)
+====================================================================================
+
+Summary saved: scripts\results\hybrid_075\sequence_summary.csv

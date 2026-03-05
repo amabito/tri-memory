@@ -1,0 +1,4 @@
+task,TRN,TF,Hybrid(0.5),best
+timeseries,3.9697,4.0535,3.9089,Hybrid(0.5)
+smoothing,3.1737,3.2358,3.1455,Hybrid(0.5)
+running_mean,4.1744,4.1724,4.1723,Hybrid(0.5)

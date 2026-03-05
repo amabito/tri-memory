@@ -1,0 +1,4 @@
+[data] Cache hit: train=2,391,884, val=247,289 tokens
+[random-targets] H_unigram = 7.4136
+  step=  100/500  loss=8.2674
+  step=  200/500  loss=7.5115

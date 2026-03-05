@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""GPU scan availability check and speedup benchmark for TRN.
+
+Verifies that torch.associative_scan is available on this GPU and measures
+the speedup of parallel_resonance_scan vs sequential_resonance_scan.
+
+Usage:
+    python scripts/train_gpu_scan.py
+
+Outputs:
+    - scripts/results/train_gpu_scan.csv
+"""
+from __future__ import annotations
+
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+import csv
+import time
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+
+from trn.scan import parallel_resonance_scan, sequential_resonance_scan
+from trn.config import TRNConfig
+from trn.model import TRNModel
+
+
+# ---------------------------------------------------------------------------
+# Part 1: Availability check
+# ---------------------------------------------------------------------------
+
+def check_associative_scan() -> dict:
+    """Check if torch.associative_scan is available and functional."""
+    result: dict = {
+        "available": False,
+        "error": None,
+        "torch_version": torch.__version__,
+    }
+
+    if not torch.cuda.is_available():
+        result["error"] = "CUDA not available"
+        return result
+
+    if not hasattr(torch, "associative_scan"):
+        result["error"] = "torch.associative_scan not present (PyTorch < 2.1)"
+        return result
+
+    try:
+        # Minimal smoke test matching TRN's _combine monoid
+        a = torch.ones(2, 4, 8, device="cuda") * 0.9   # alpha
+        b = torch.randn(2, 4, 8, device="cuda")         # drive
+
+        def combine(x: tuple[torch.Tensor, torch.Tensor],
+                    y: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+            a1, b1 = x
+            a2, b2 = y
+            return a2 * a1, torch.addcmul(b2, a2, b1)
+
+        out = torch.associative_scan(combine, (a, b), dim=1)  # noqa: F841
+        torch.cuda.synchronize()
+        result["available"] = True
+    except Exception as exc:
+        result["error"] = str(exc)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Part 2: Correctness check
+# ---------------------------------------------------------------------------
+
+def check_correctness(
+    B: int = 4,
+    seq_len: int = 512,
+    K: int = 64,
+    device: str = "cuda",
+) -> dict:
+    """Compare parallel and sequential scans for numerical agreement."""
+    alpha   = torch.sigmoid(torch.randn(B, seq_len, K, device=device)).float()
+    drive_r = torch.randn(B, seq_len, K, device=device).float()
+    drive_i = torch.randn(B, seq_len, K, device=device).float()
+
+    with torch.no_grad():
+        r_seq, i_seq = sequential_resonance_scan(alpha, drive_r, drive_i)
+        r_par, i_par = parallel_resonance_scan(alpha, drive_r, drive_i)
+
+    if device == "cuda":
+        torch.cuda.synchronize()
+
+    max_diff_r = (r_seq - r_par).abs().max().item()
+    max_diff_i = (i_seq - i_par).abs().max().item()
+    passed = max(max_diff_r, max_diff_i) < 1e-4
+
+    return {
+        "max_diff_r": max_diff_r,
+        "max_diff_i": max_diff_i,
+        "pass": passed,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Part 3: Speedup benchmark
+# ---------------------------------------------------------------------------
+
+def benchmark_scan(
+    seq_lens: list[int] | None = None,
+    B: int = 4,
+    K: int = 64,
+    n_warmup: int = 10,
+    n_runs: int = 50,
+    parallel_available: bool = True,
+    device: str = "cuda",
+) -> list[dict]:
+    """Benchmark parallel vs sequential resonance scan at multiple sequence lengths."""
+    if seq_lens is None:
+        seq_lens = [128, 256, 512, 1024, 2048, 4096]
+
+    results = []
+
+    for seq_len in seq_lens:
+        alpha   = torch.sigmoid(torch.randn(B, seq_len, K, device=device)).float()
+        drive_r = torch.randn(B, seq_len, K, device=device).float()
+        drive_i = torch.randn(B, seq_len, K, device=device).float()
+
+        # Warmup
+        with torch.no_grad():
+            for _ in range(n_warmup):
+                sequential_resonance_scan(alpha, drive_r, drive_i)
+                if parallel_available:
+                    parallel_resonance_scan(alpha, drive_r, drive_i)
+
+        if device == "cuda":
+            torch.cuda.synchronize()
+
+        # Time sequential
+        with torch.no_grad():
+            t0 = time.perf_counter()
+            for _ in range(n_runs):
+                sequential_resonance_scan(alpha, drive_r, drive_i)
+            if device == "cuda":
+                torch.cuda.synchronize()
+        seq_ms = (time.perf_counter() - t0) * 1000.0 / n_runs
+
+        # Time parallel (if available)
+        par_ms: float | None = None
+        if parallel_available:
+            with torch.no_grad():
+                t0 = time.perf_counter()
+                for _ in range(n_runs):
+                    parallel_resonance_scan(alpha, drive_r, drive_i)
+                if device == "cuda":
+                    torch.cuda.synchronize()
+            par_ms = (time.perf_counter() - t0) * 1000.0 / n_runs
+
+        speedup = seq_ms / par_ms if par_ms is not None and par_ms > 0 else None
+
+        results.append({
+            "seq_len": seq_len,
+            "seq_ms": seq_ms,
+            "par_ms": par_ms,
+            "speedup": speedup,
+        })
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Part 4: GPU training throughput
+# ---------------------------------------------------------------------------
+
+def benchmark_training(device: str = "cuda", n_steps: int = 200) -> dict:
+    """Train a tiny TRN model and report tokens-per-second and peak memory.
+
+    Returns: {"device": str, "model": str, "tps": float, "peak_mb": float}
+    """
+    from trn.bench_data import NextTokenCopyDataset, seed_everything
+    from torch.utils.data import DataLoader
+
+    D_MODEL  = 128
+    N_LAYERS = 4
+    K        = 64
+    BATCH    = 4
+    SEQ_LEN  = 64
+
+    seed_everything(42)
+
+    cfg = TRNConfig(
+        vocab_size=256,
+        d_model=D_MODEL,
+        n_oscillators=K,
+        n_layers=N_LAYERS,
+        d_ff=D_MODEL * 4,
+        max_seq_len=SEQ_LEN * 2,
+    )
+    model = TRNModel(cfg).to(device).train()
+
+    ds = NextTokenCopyDataset(n_samples=2000, seq_len=SEQ_LEN, vocab_size=256, period=8, seed=42)
+    loader = DataLoader(ds, batch_size=BATCH, shuffle=True, drop_last=True)
+    loader_iter = iter(loader)
+
+    opt = torch.optim.AdamW(model.parameters(), lr=3e-4)
+
+    if device == "cuda":
+        torch.cuda.reset_peak_memory_stats()
+
+    # Warmup
+    for _ in range(10):
+        try:
+            batch = next(loader_iter)
+        except StopIteration:
+            loader_iter = iter(loader)
+            batch = next(loader_iter)
+        ids = batch["input_ids"].to(device)
+        out = model(ids, labels=ids)
+        out["loss"].backward()
+        opt.zero_grad()
+
+    if device == "cuda":
+        torch.cuda.synchronize()
+
+    t0 = time.perf_counter()
+    for _ in range(n_steps):
+        try:
+            batch = next(loader_iter)
+        except StopIteration:
+            loader_iter = iter(loader)
+            batch = next(loader_iter)
+        ids = batch["input_ids"].to(device)
+        out = model(ids, labels=ids)
+        out["loss"].backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step()
+        opt.zero_grad()
+
+    if device == "cuda":
+        torch.cuda.synchronize()
+
+    elapsed = time.perf_counter() - t0
+    total_tokens = n_steps * BATCH * SEQ_LEN
+    tps = total_tokens / elapsed
+
+    peak_mb = 0.0
+    if device == "cuda":
+        peak_mb = torch.cuda.max_memory_allocated() / (1024 ** 2)
+
+    return {
+        "device": device,
+        "model": f"TRN d={D_MODEL} L={N_LAYERS} K={K}",
+        "tps": tps,
+        "peak_mb": peak_mb,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    results_dir = Path(__file__).parent / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    # GPU info
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name()}")
+    else:
+        print("GPU: not available")
+
+    print(f"PyTorch: {torch.__version__}")
+    print()
+
+    # --- Part 1: Availability ---
+    avail = check_associative_scan()
+    if avail["available"]:
+        print("[AVAIL] torch.associative_scan: available")
+    else:
+        print(f"[SKIP] torch.associative_scan: not available -- {avail['error']}")
+    print()
+
+    parallel_available = avail["available"]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # --- Part 2: Correctness ---
+    if device == "cuda":
+        corr = check_correctness(device=device)
+        status = "[PASS]" if corr["pass"] else "[FAIL]"
+        print(
+            f"{status} correctness check  "
+            f"max_diff_r={corr['max_diff_r']:.2e}  "
+            f"max_diff_i={corr['max_diff_i']:.2e}"
+        )
+        print()
+    else:
+        print("[SKIP] correctness check — CUDA not available")
+        print()
+
+    # --- Part 3: Speedup benchmark ---
+    if parallel_available:
+        print("Benchmarking parallel vs sequential scan (CUDA) ...")
+    else:
+        print("Benchmarking sequential scan only (parallel scan requires CUDA) ...")
+
+    bench_results = benchmark_scan(
+        parallel_available=parallel_available,
+        device=device,
+    )
+
+    # Print table
+    header = f"{'seq_len':>8} | {'seq_ms':>9} | {'par_ms':>9} | {'speedup':>8}"
+    print(header)
+    print("-" * len(header))
+    for r in bench_results:
+        par_str = f"{r['par_ms']:9.3f}" if r["par_ms"] is not None else "      N/A"
+        spd_str = f"{r['speedup']:8.2f}x" if r["speedup"] is not None else "       N/A"
+        print(f"{r['seq_len']:>8} | {r['seq_ms']:9.3f} | {par_str} | {spd_str}")
+    print()
+
+    if not parallel_available:
+        print("Note: parallel scan requires CUDA -- speedup not measured")
+        print()
+
+    # Save CSV
+    csv_path = results_dir / "train_gpu_scan.csv"
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["seq_len", "seq_ms", "par_ms", "speedup"])
+        for r in bench_results:
+            w.writerow([
+                r["seq_len"],
+                f"{r['seq_ms']:.4f}",
+                f"{r['par_ms']:.4f}" if r["par_ms"] is not None else "",
+                f"{r['speedup']:.4f}" if r["speedup"] is not None else "",
+            ])
+    print(f"Saved: {csv_path}")
+    print()
+
+    # --- Part 4: Training throughput ---
+    print(f"Training throughput ({device.upper()}, 200 steps) ...")
+    train_result = benchmark_training(device=device, n_steps=200)
+    print(
+        f"  model : {train_result['model']}\n"
+        f"  device: {train_result['device']}\n"
+        f"  tps   : {train_result['tps']:,.0f} tokens/s\n"
+        f"  peak  : {train_result['peak_mb']:.1f} MB"
+    )
+    print()
+
+    # --- Summary ---
+    print("=" * 50)
+    print("Summary")
+    print("=" * 50)
+    print(f"  torch.associative_scan available: {parallel_available}")
+    if device == "cuda" and parallel_available:
+        r1024 = next((r for r in bench_results if r["seq_len"] == 1024), None)
+        if r1024 and r1024["speedup"] is not None:
+            print(f"  speedup at seq_len=1024: {r1024['speedup']:.2f}x")
+    print(f"  training throughput ({device}): {train_result['tps']:,.0f} tok/s")
+    print("=" * 50)
+
+
+if __name__ == "__main__":
+    main()
