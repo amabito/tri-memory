@@ -1,0 +1,9 @@
+{
+  "W_NORMAL": 1.0,
+  "W_QUERY": 4.0,
+  "W_ANSWER": 8.0,
+  "W_FACT_SPAN": 10.0,
+  "W_PATTERN_TARGET": 6.0,
+  "W_SALIENT": 8.0,
+  "v2_W_FACT_SPAN": 8.0
+}

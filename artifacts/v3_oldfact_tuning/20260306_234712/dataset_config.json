@@ -1,0 +1,22 @@
+{
+  "old_fact_low": 220,
+  "old_fact_high": 225,
+  "old_fact_types": 5,
+  "old_fact_span_len": 2,
+  "random_baseline_token": 0.2,
+  "random_baseline_span_exact": 0.04000000000000001,
+  "pattern_period": 5,
+  "pattern_block": "30-80",
+  "pattern_regime_shift": 55,
+  "salient_pos": "10-15",
+  "salient_types": 16,
+  "recent_range": "200-220",
+  "seq_len": 256,
+  "vocab_size": 256,
+  "v2_comparison": {
+    "old_fact_range": "220-240 (20 types)",
+    "old_fact_span_len": 3,
+    "old_fact_random_baseline_token": 0.05,
+    "old_fact_random_baseline_span": 0.000125
+  }
+}

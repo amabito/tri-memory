@@ -1,0 +1,71 @@
+{
+  "verdict": "V3_SIGNAL_FAIL",
+  "criteria": {
+    "old_fact_token_C_gt_A": {
+      "pass": true,
+      "C": 0.21213942307692307,
+      "A": 0.2109375
+    },
+    "old_fact_span_C_ge_A": {
+      "pass": true,
+      "C": 0.046875,
+      "A": 0.046875
+    },
+    "salient_C_ge_A": {
+      "pass": true,
+      "C": 0.07451923076923078,
+      "A": 0.06850961538461539
+    },
+    "pattern_B_ge_A": {
+      "pass": false,
+      "B": 0.014423076923076924,
+      "A": 0.020432692307692308
+    },
+    "no_nan_inf": {
+      "pass": true
+    },
+    "supplementary_D_gt_max_ABC": {
+      "pass": false,
+      "D": 0.23473557692307692,
+      "max_ABC": 0.23509615384615384
+    }
+  },
+  "model_means": {
+    "kv": {
+      "composite_score": 0.23389423076923077,
+      "recent_exact_acc": 1.0,
+      "old_fact_token_acc": 0.2109375,
+      "old_fact_span_exact_acc": 0.046875,
+      "old_fact_span_partial_acc": 0.375,
+      "pattern_token_acc": 0.020432692307692308,
+      "salient_event_acc": 0.06850961538461539
+    },
+    "kv_trn": {
+      "composite_score": 0.23209134615384613,
+      "recent_exact_acc": 1.0,
+      "old_fact_token_acc": 0.20973557692307693,
+      "old_fact_span_exact_acc": 0.046875,
+      "old_fact_span_partial_acc": 0.37259615384615385,
+      "pattern_token_acc": 0.014423076923076924,
+      "salient_event_acc": 0.06850961538461539
+    },
+    "kv_ret": {
+      "composite_score": 0.23509615384615384,
+      "recent_exact_acc": 1.0,
+      "old_fact_token_acc": 0.21213942307692307,
+      "old_fact_span_exact_acc": 0.046875,
+      "old_fact_span_partial_acc": 0.37740384615384615,
+      "pattern_token_acc": 0.020432692307692308,
+      "salient_event_acc": 0.07451923076923078
+    },
+    "trimemory": {
+      "composite_score": 0.23473557692307692,
+      "recent_exact_acc": 1.0,
+      "old_fact_token_acc": 0.20973557692307693,
+      "old_fact_span_exact_acc": 0.046875,
+      "old_fact_span_partial_acc": 0.37259615384615385,
+      "pattern_token_acc": 0.021634615384615384,
+      "salient_event_acc": 0.07091346153846154
+    }
+  }
+}
