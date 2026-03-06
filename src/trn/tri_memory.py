@@ -425,6 +425,9 @@ class TriMemoryBlock(nn.Module):
         g_trn = gates[:, :, 1:2]
         g_ret = gates[:, :, 2:3]
 
+        # Store gate values for telemetry (detached, no memory leak)
+        self._last_gates = gates.detach().mean(dim=(0, 1))  # (3,)
+
         mixed = g_kv * attn_out + g_trn * trn_out + g_ret * ret_out
 
         x = x + self.drop(mixed)
@@ -606,6 +609,11 @@ class TriMemoryEngine(nn.Module):
         # Build per-sample retrieval context from early tokens
         retrieval_context = self._build_train_retrieval(input_ids, x)
 
+        # Telemetry: track retrieval usage
+        self._last_retrieval_used = retrieval_context is not None
+        archive_end = T - self.window_size
+        self._last_n_chunks = max(0, archive_end // self.chunk_size) if T > self.window_size + self.chunk_size else 0
+
         for block in self.blocks:
             x = block(x, retrieval_context=retrieval_context)
 
@@ -700,6 +708,9 @@ class TriMemoryEngine(nn.Module):
         # Get retrieval context from current input tokens
         query_tokens = input_ids[0].tolist() if B > 0 else []
         retrieval_context = self._get_retrieval_context(query_tokens, device)
+        # Ensure (B, d_model) shape for TriMemoryBlock
+        if retrieval_context is not None and retrieval_context.dim() == 1:
+            retrieval_context = retrieval_context.unsqueeze(0).expand(B, -1)
 
         # Build hidden states
         pe_start = min(position, self.pe.size(0) - T)
@@ -759,6 +770,34 @@ class TriMemoryEngine(nn.Module):
                 self._global_step += 1
 
         return result, states_r, states_i
+
+    def collect_gate_telemetry(self) -> dict:
+        """Collect gate ratios and retrieval stats from last forward pass.
+
+        Call after a forward() to get telemetry for that batch.
+        """
+        gate_kv, gate_trn, gate_ret = 0.0, 0.0, 0.0
+        n_blocks = len(self.blocks)
+        for block in self.blocks:
+            if hasattr(block, "_last_gates"):
+                g = block._last_gates
+                gate_kv += g[0].item()
+                gate_trn += g[1].item()
+                gate_ret += g[2].item()
+        if n_blocks > 0:
+            gate_kv /= n_blocks
+            gate_trn /= n_blocks
+            gate_ret /= n_blocks
+
+        return {
+            "router_kv_ratio": gate_kv,
+            "router_trn_ratio": gate_trn,
+            "router_ret_ratio": gate_ret,
+            "retrieval_used": getattr(self, "_last_retrieval_used", False),
+            "archive_chunk_count": getattr(self, "_last_n_chunks", 0),
+            "state_bytes": self.state_memory_bytes,
+            "retained_kv_tokens": self.window_size,
+        }
 
     def reset_memory(self) -> None:
         """Reset all non-parameter memory state."""
