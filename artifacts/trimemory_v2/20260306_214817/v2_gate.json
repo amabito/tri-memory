@@ -1,0 +1,59 @@
+{
+  "verdict": "V2_FAIL",
+  "criteria": {
+    "composite_D_gt_max_ABC": {
+      "pass": false,
+      "D": 0.21682692307692308,
+      "max_ABC": 0.21911057692307695
+    },
+    "pattern_B_gt_A": {
+      "pass": true,
+      "B": 0.026442307692307692,
+      "A": 0.022836538461538464
+    },
+    "old_fact_C_gt_A": {
+      "pass": false,
+      "C": 0.0,
+      "A": 0.0
+    },
+    "salient_C_gt_A": {
+      "pass": true,
+      "C": 0.057692307692307696,
+      "A": 0.055288461538461536
+    }
+  },
+  "model_means": {
+    "kv": {
+      "composite": 0.21790865384615388,
+      "recent": 1.0,
+      "old_fact_span": 0.0,
+      "old_fact_token": 0.04927884615384615,
+      "pattern": 0.022836538461538464,
+      "salient": 0.055288461538461536
+    },
+    "kv_trn": {
+      "composite": 0.21899038461538461,
+      "recent": 1.0,
+      "old_fact_span": 0.0,
+      "old_fact_token": 0.04887820512820513,
+      "pattern": 0.026442307692307692,
+      "salient": 0.055288461538461536
+    },
+    "kv_ret": {
+      "composite": 0.21911057692307695,
+      "recent": 1.0,
+      "old_fact_span": 0.0,
+      "old_fact_token": 0.04967948717948718,
+      "pattern": 0.025240384615384616,
+      "salient": 0.057692307692307696
+    },
+    "trimemory": {
+      "composite": 0.21682692307692308,
+      "recent": 1.0,
+      "old_fact_span": 0.0,
+      "old_fact_token": 0.04767628205128205,
+      "pattern": 0.019230769230769232,
+      "salient": 0.055288461538461536
+    }
+  }
+}
