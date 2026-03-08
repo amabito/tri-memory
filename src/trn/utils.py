@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -27,3 +29,58 @@ class _RMSNorm(nn.Module):
         x_f  = x.float()
         norm = x_f * torch.rsqrt(x_f.pow(2).mean(-1, keepdim=True) + self.eps)
         return (norm * self.weight).to(x.dtype)
+
+
+def build_sinusoidal_pe(max_len: int, d_model: int) -> Tensor:
+    """Build sinusoidal positional encoding buffer."""
+    pe = torch.zeros(max_len, d_model)
+    position = torch.arange(max_len).unsqueeze(1).float()
+    div_term = torch.exp(
+        torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+    )
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+    return pe
+
+
+def num_parameters(model: nn.Module, non_embedding: bool = True) -> int:
+    """Count trainable parameters, optionally excluding embedding tables."""
+    total = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    if non_embedding and hasattr(model, "embedding"):
+        total -= model.embedding.weight.numel()
+    elif non_embedding and hasattr(model, "embed"):
+        total -= model.embed.weight.numel()
+    return total
+
+
+def configure_optimizer_param_groups(
+    model: nn.Module,
+    weight_decay: float = 0.1,
+) -> list[dict]:
+    """Split parameters into decay / no-decay groups.
+
+    No-decay: omega_base, res_scale, biases, norms, embeddings.
+    """
+    decay: set[str] = set()
+    no_decay: set[str] = set()
+
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        if (
+            "omega_base" in name
+            or "res_scale" in name
+            or name.endswith(".bias")
+            or "norm" in name.lower()
+            or "embedding" in name
+            or "embed" in name
+        ):
+            no_decay.add(name)
+        else:
+            decay.add(name)
+
+    params = {n: p for n, p in model.named_parameters() if p.requires_grad}
+    return [
+        {"params": [params[n] for n in sorted(decay)], "weight_decay": weight_decay},
+        {"params": [params[n] for n in sorted(no_decay)], "weight_decay": 0.0},
+    ]

@@ -16,7 +16,6 @@ class TRNConfig:
     tie_weights:       bool  = True
 
     # --- Stabilization flags ---
-    log_phase:           bool  = True    # use omega*log(i+1) instead of omega*i (P0 default)
     clamp_resonance:     bool  = False   # legacy L2 norm clamp (superseded by state_norm)
     resonance_clamp_val: float = 10.0    # max L2 norm of resonance state per oscillator
 
@@ -26,6 +25,7 @@ class TRNConfig:
     res_scale_init:      float = 0.05    # learnable resonance output scale initial value
     gate_bias_init:      float = 0.85    # sigmoid(bias) target for alpha init (~0.6-0.75)
     phase_mode:          str   = "log"   # "log" = omega*log(i+1), "linear" = omega*i
+    scan_chunk_size:     int   = 16     # chunk size for chunked_resonance_scan
 
     @property
     def d_ff_hidden(self) -> int:

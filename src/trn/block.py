@@ -43,7 +43,6 @@ class TRNBlock(nn.Module):
             d_model              = cfg.d_model,
             K                    = cfg.n_oscillators,
             use_parallel_scan    = cfg.use_parallel_scan,
-            log_phase            = cfg.log_phase,
             clamp_resonance      = cfg.clamp_resonance,
             resonance_clamp_val  = cfg.resonance_clamp_val,
             amplitude_max        = cfg.amplitude_max,
@@ -51,6 +50,7 @@ class TRNBlock(nn.Module):
             res_scale_init       = cfg.res_scale_init,
             gate_bias_init       = cfg.gate_bias_init,
             phase_mode           = cfg.phase_mode,
+            scan_chunk_size      = cfg.scan_chunk_size,
         )
         self.ffn  = SwiGLU(cfg.d_model, cfg.d_ff_hidden)
         self.drop = (

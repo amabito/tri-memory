@@ -1,4 +1,4 @@
-"""Perplexity evaluation for TRNModel."""
+"""Perplexity evaluation for TRN language models."""
 from __future__ import annotations
 
 import math
@@ -9,105 +9,74 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from .data import PackedDataset
-from .model import TRNModel
 
 
-@torch.no_grad()
+@torch.inference_mode()
+def evaluate(
+    model: nn.Module,
+    dataset_or_loader,
+    batch_size: int = 8,
+    device: str = "cpu",
+    max_batches: Optional[int] = None,
+) -> dict:
+    """Evaluate model perplexity on a dataset or dataloader.
+
+    Args:
+        model: any model with forward(input_ids, labels) -> dict with 'loss'
+        dataset_or_loader: PackedDataset or DataLoader
+        batch_size: batch size (ignored if DataLoader provided)
+        device: device to run on
+        max_batches: limit number of batches (None = all)
+
+    Returns:
+        dict with 'loss', 'perplexity', 'n_batches'
+    """
+    model.eval()
+
+    if isinstance(dataset_or_loader, DataLoader):
+        loader = dataset_or_loader
+    else:
+        loader = DataLoader(dataset_or_loader, batch_size=batch_size, shuffle=False)
+
+    total_loss = 0.0
+    n = 0
+
+    for batch_idx, batch in enumerate(loader):
+        if max_batches is not None and batch_idx >= max_batches:
+            break
+        input_ids = batch["input_ids"].to(device)
+        out = model(input_ids, labels=input_ids)
+        total_loss += out["loss"].item()
+        n += 1
+
+    if n == 0:
+        return {"loss": float("inf"), "perplexity": float("inf"), "n_batches": 0}
+
+    mean_loss = total_loss / n
+    return {
+        "loss": mean_loss,
+        "perplexity": math.exp(mean_loss),
+        "n_batches": n,
+    }
+
+
+# Backward-compatible aliases
 def evaluate_perplexity(
     model: nn.Module,
     dataloader: DataLoader,
     device: str = "cpu",
     max_batches: Optional[int] = None,
 ) -> float:
-    """Compute perplexity on a dataset.
-
-    Args:
-        model: TRNModel (or any model with forward(input_ids, labels) -> dict with 'loss')
-        dataloader: yields dicts with 'input_ids' and 'labels'
-        device: device to run on
-        max_batches: limit number of batches (None = all)
-
-    Returns:
-        perplexity = exp(mean cross-entropy loss)
-    """
-    model.eval()
-    total_loss = 0.0
-    total_batches = 0
-
-    for batch_idx, batch in enumerate(dataloader):
-        if max_batches is not None and batch_idx >= max_batches:
-            break
-
-        input_ids = batch["input_ids"].to(device)
-
-        # model.forward applies causal shift internally (labels[:,1:]).
-        # Pass input_ids as labels — not pre-shifted PackedDataset labels.
-        out = model(input_ids, labels=input_ids)
-        total_loss += out["loss"].item()
-        total_batches += 1
-
-    if total_batches == 0:
-        return float("inf")
-
-    mean_loss = total_loss / total_batches
-    return math.exp(mean_loss)
+    """Compute perplexity. Thin wrapper around evaluate()."""
+    result = evaluate(model, dataloader, device=device, max_batches=max_batches)
+    return result["perplexity"]
 
 
 def compute_perplexity(
-    model: TRNModel,
+    model: nn.Module,
     dataset: PackedDataset,
     batch_size: int = 8,
     device: str = "cpu",
 ) -> float:
-    """Compute perplexity on a dataset.
-
-    Returns exp(mean cross-entropy loss) averaged over all batches.
-    Uses inference_mode for speed.
-    """
-    model.eval()
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    total_loss = 0.0
-    total_batches = 0
-
-    with torch.inference_mode():
-        for batch in loader:
-            input_ids = batch["input_ids"].to(device)
-            # model.forward does the causal shift internally (labels[:,1:]),
-            # so pass input_ids as labels — not the pre-shifted PackedDataset labels.
-            out = model(input_ids, labels=input_ids)
-            total_loss += out["loss"].item()
-            total_batches += 1
-
-    if total_batches == 0:
-        return float("inf")
-
-    mean_loss = total_loss / total_batches
-    return math.exp(mean_loss)
-
-
-def evaluate(
-    model: TRNModel,
-    dataset: PackedDataset,
-    batch_size: int = 8,
-    device: str = "cpu",
-) -> dict:
-    """Full evaluation returning loss + perplexity."""
-    model.eval()
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    total_loss = 0.0
-    n = 0
-
-    with torch.inference_mode():
-        for batch in loader:
-            input_ids = batch["input_ids"].to(device)
-            # model.forward does causal shift internally — pass input_ids as labels.
-            out = model(input_ids, labels=input_ids)
-            total_loss += out["loss"].item()
-            n += 1
-
-    mean_loss = total_loss / max(n, 1)
-    return {
-        "loss": mean_loss,
-        "perplexity": math.exp(mean_loss),
-        "n_batches": n,
-    }
+    """Compute perplexity. Thin wrapper around evaluate()."""
+    return evaluate(model, dataset, batch_size=batch_size, device=device)["perplexity"]

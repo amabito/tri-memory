@@ -1,23 +1,25 @@
 """RetrievalIndex: sparse exact-fact archive for Tri-Memory LLM.
 
 Stores salient evicted chunks with metadata and supports
-bag-of-token-id cosine similarity search.
+multiple search modes: bag-of-token cosine, hidden-state cosine,
+or a weighted hybrid of both.
 
 Design rationale:
   - No vector DB dependency (standard library + torch only)
   - Chunk-level storage (not token-level) to bound memory
-  - Bag-of-token cosine for search: works well for exact fact lookup
-    (numbers, IDs, URLs) without requiring hidden state storage
+  - hidden-state cosine for semantic retrieval (default)
+  - bag-of-token cosine for lexical retrieval (original v1)
+  - hybrid mode for weighted combination
   - Metadata enables rule-based pre-filtering before similarity
 
 Limitations:
   - Not a learned retriever -- rule-based saliency + cosine
-  - No semantic similarity (bag-of-token is lexical)
   - Max chunks bounded to prevent unbounded growth
 """
 from __future__ import annotations
 
 import math
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -56,7 +58,7 @@ class RetrievalIndex:
         self.vocab_size = vocab_size
         self.max_chunks = max_chunks
         self.d_model = d_model
-        self._chunks: list[ChunkRecord] = []
+        self._chunks: deque[ChunkRecord] = deque(maxlen=max_chunks)
         self._next_id: int = 0
 
     def __len__(self) -> int:
@@ -100,47 +102,101 @@ class RetrievalIndex:
         )
         self._next_id += 1
 
-        if len(self._chunks) >= self.max_chunks:
-            self._chunks.pop(0)  # FIFO evict oldest
-
         self._chunks.append(record)
         return record.chunk_id
+
+    def _hidden_cosine(
+        self, query_hidden: Tensor, chunk: ChunkRecord,
+    ) -> float:
+        """Cosine similarity between query hidden and chunk hidden_mean."""
+        q = query_hidden.flatten().float().cpu()
+        c = chunk.hidden_mean.flatten().float()
+        q_norm = q.norm()
+        c_norm = c.norm()
+        if q_norm == 0 or c_norm == 0:
+            return 0.0
+        return (torch.dot(q, c) / (q_norm * c_norm)).item()
 
     def search(
         self,
         query_token_ids: list[int],
         top_k: int = 4,
         query_hidden: Optional[Tensor] = None,
+        mode: str = "hidden",
+        w_hidden: float = 0.7,
+        w_bag: float = 0.3,
     ) -> list[ChunkRecord]:
-        """Retrieve top-k chunks by bag-of-token cosine similarity.
+        """Retrieve top-k chunks by similarity.
 
         Args:
             query_token_ids: current context token IDs for bag-of-token match
             top_k: number of chunks to return
-            query_hidden: optional hidden state for tiebreaking (unused in v1)
+            query_hidden: (d_model,) hidden state for hidden/hybrid modes
+            mode: "bag", "hidden", or "hybrid"
+            w_hidden: weight for hidden cosine in hybrid mode
+            w_bag: weight for bag cosine in hybrid mode
 
         Returns:
             list of ChunkRecord, sorted by descending similarity
         """
+        results, _ = self.search_with_scores(
+            query_token_ids, top_k, query_hidden, mode, w_hidden, w_bag,
+        )
+        return results
+
+    def search_with_scores(
+        self,
+        query_token_ids: list[int],
+        top_k: int = 4,
+        query_hidden: Optional[Tensor] = None,
+        mode: str = "hidden",
+        w_hidden: float = 0.7,
+        w_bag: float = 0.3,
+    ) -> tuple[list[ChunkRecord], list[dict]]:
+        """Retrieve top-k chunks with per-chunk score breakdown.
+
+        Returns:
+            (results, score_dicts) where each score_dict has keys:
+            hidden_score, bag_score, combined_score
+        """
         if not self._chunks:
-            return []
+            return [], []
 
         query_bag = self._make_token_bag(query_token_ids)
-        query_norm = query_bag.norm()
-        if query_norm == 0:
-            return self._chunks[:top_k]
+        use_hidden = mode in ("hidden", "hybrid") and query_hidden is not None
+        use_bag = mode in ("bag", "hybrid")
 
-        scores: list[tuple[float, int]] = []
+        # Fallback: if hidden mode requested but no query_hidden, use bag
+        if mode == "hidden" and query_hidden is None:
+            use_bag = True
+
+        scored: list[tuple[float, float, float, int]] = []
         for idx, chunk in enumerate(self._chunks):
-            if chunk.token_bag is not None:
-                sim = torch.dot(query_bag, chunk.token_bag).item()
-            else:
-                sim = 0.0
-            scores.append((sim, idx))
+            h_score = 0.0
+            b_score = 0.0
+            if use_hidden:
+                h_score = self._hidden_cosine(query_hidden, chunk)
+            if use_bag or mode == "bag":
+                if chunk.token_bag is not None:
+                    b_score = torch.dot(query_bag, chunk.token_bag).item()
 
-        scores.sort(key=lambda x: x[0], reverse=True)
-        results = [self._chunks[idx] for _, idx in scores[:top_k]]
-        return results
+            if mode == "hybrid":
+                combined = w_hidden * h_score + w_bag * b_score
+            elif mode == "hidden" and query_hidden is not None:
+                combined = h_score
+            else:
+                combined = b_score
+
+            scored.append((combined, h_score, b_score, idx))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:top_k]
+        results = [self._chunks[idx] for _, _, _, idx in top]
+        score_dicts = [
+            {"hidden_score": hs, "bag_score": bs, "combined_score": cs}
+            for cs, hs, bs, _ in top
+        ]
+        return results, score_dicts
 
     def search_by_metadata(
         self,
@@ -165,6 +221,30 @@ class RetrievalIndex:
         """Clear all stored chunks."""
         self._chunks.clear()
         self._next_id = 0
+
+    def get_all_chunks(self) -> list[ChunkRecord]:
+        """Return a copy of all stored chunks."""
+        return list(self._chunks)
+
+    def remove_chunks(self, keep_fn) -> int:
+        """Remove chunks where keep_fn(chunk) returns False.
+
+        Returns number of chunks removed.
+        """
+        before = len(self._chunks)
+        kept = deque((c for c in self._chunks if keep_fn(c)), maxlen=self.max_chunks)
+        self._chunks = kept
+        return before - len(self._chunks)
+
+    def update_chunk(self, chunk_id: int, **kwargs) -> bool:
+        """Update fields on a chunk by chunk_id. Returns True if found."""
+        for chunk in self._chunks:
+            if chunk.chunk_id == chunk_id:
+                for key, value in kwargs.items():
+                    if hasattr(chunk, key):
+                        setattr(chunk, key, value)
+                return True
+        return False
 
     def memory_bytes(self) -> int:
         """Estimate memory usage of stored chunks."""

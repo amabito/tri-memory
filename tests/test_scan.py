@@ -112,13 +112,13 @@ def test_parallel_fallback(monkeypatch):
     monkeypatch.setattr(scan_module, "torch", _FakeTorch())
 
     called = []
-    original_seq = scan_module.sequential_resonance_scan
+    original_chunked = scan_module.chunked_resonance_scan
 
     def _spy(*args, **kwargs):
         called.append(True)
-        return original_seq(*args, **kwargs)
+        return original_chunked(*args, **kwargs)
 
-    monkeypatch.setattr(scan_module, "sequential_resonance_scan", _spy)
+    monkeypatch.setattr(scan_module, "chunked_resonance_scan", _spy)
 
     B, n, K = 1, 4, 2
     alpha   = torch.rand(B, n, K).clamp(0.0, 0.99)
@@ -128,7 +128,7 @@ def test_parallel_fallback(monkeypatch):
     from trn.scan import parallel_resonance_scan
     parallel_resonance_scan(alpha, drive_r, drive_i)
 
-    assert len(called) > 0, "sequential_resonance_scan was not called as fallback"
+    assert len(called) > 0, "chunked_resonance_scan was not called as fallback"
 
 
 # ---------------------------------------------------------------------------

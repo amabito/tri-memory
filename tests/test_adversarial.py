@@ -323,10 +323,10 @@ def test_negative_token_ids(toy_model: TRNModel) -> None:
 def test_fp32_state_in_bf16_forward(toy_cfg: TRNConfig) -> None:
     """alpha passed to the scan must be float32 even in a bf16 forward pass.
 
-    Patches trn.resonance (where the name is resolved) rather than trn.scan.
+    Patches trn.resonance.chunked_resonance_scan (the CPU path used by forward).
     """
     import trn.resonance as resonance_module
-    import trn.scan as scan_module
+    from trn.scan import chunked_resonance_scan as _orig_chunked
     torch.manual_seed(21)
     B, n = 1, 4
 
@@ -337,21 +337,20 @@ def test_fp32_state_in_bf16_forward(toy_cfg: TRNConfig) -> None:
     ).to(torch.bfloat16).eval()
 
     observed: list[torch.dtype] = []
-    _orig = scan_module.sequential_resonance_scan
 
-    def _spy(alpha: torch.Tensor, drive_r: torch.Tensor, drive_i: torch.Tensor):
+    def _spy(alpha: torch.Tensor, drive_r: torch.Tensor, drive_i: torch.Tensor, **kwargs):
         observed.append(alpha.dtype)
-        return _orig(alpha, drive_r, drive_i)
+        return _orig_chunked(alpha, drive_r, drive_i, **kwargs)
 
     # Patch the name as seen by resonance.py (its local import binding).
-    _orig_in_resonance = resonance_module.sequential_resonance_scan
-    resonance_module.sequential_resonance_scan = _spy
+    _orig_in_resonance = resonance_module.chunked_resonance_scan
+    resonance_module.chunked_resonance_scan = _spy
     try:
         x = torch.randn(B, n, toy_cfg.d_model, dtype=torch.bfloat16)
         with torch.no_grad():
             layer(x)
     finally:
-        resonance_module.sequential_resonance_scan = _orig_in_resonance
+        resonance_module.chunked_resonance_scan = _orig_in_resonance
 
     assert len(observed) > 0, "scan was never called"
     for dt in observed:

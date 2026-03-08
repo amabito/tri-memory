@@ -170,7 +170,8 @@ class SimpleTrainer:
         self.optimizer.zero_grad()
         # model.forward applies causal shift internally (shift_labels = labels[:,1:]).
         # Pass input_ids as labels so targets = input_ids[:,1:] (correct GPT-style).
-        out = self.model(input_ids.to(self.device), labels=input_ids.to(self.device))
+        ids = input_ids.to(self.device)
+        out = self.model(ids, labels=ids)
         loss = out["loss"]
         loss.backward()
         nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)

@@ -178,14 +178,15 @@ def generate(
             x = x + block.drop(res_out)
             x = x + block.drop(block.ffn(block.norm2(x)))
 
-    generated: list[Tensor] = []
-    current_ids = prompt_ids  # (B, T) — grows as we generate
+    # Pre-allocate buffer for all generated tokens to avoid O(T^2) cat
+    max_new = gen_cfg.max_new_tokens
+    all_ids = torch.empty(B, prompt_len + max_new, dtype=torch.long, device=device)
+    all_ids[:, :prompt_len] = prompt_ids
+    n_generated = 0
 
-    for step in range(gen_cfg.max_new_tokens):
+    for step in range(max_new):
         pos = prompt_len - 1 + step
-        # First step uses the last prompt token; subsequent steps use the last
-        # generated token.
-        token = prompt_ids[:, -1] if step == 0 else generated[-1]  # (B,)
+        token = prompt_ids[:, -1] if step == 0 else all_ids[:, prompt_len + step - 1]
 
         x = model.drop_emb(model.embedding(token).to(param_dtype))
         for layer_idx, block in enumerate(model.blocks):
@@ -199,13 +200,14 @@ def generate(
             x = x + block.drop(block.ffn(block.norm2(x)))
 
         logits = model.lm_head(model.norm_out(x))  # (B, vocab_size)
-        next_tok = sample_token(logits, gen_cfg, generated_ids=current_ids)
-        generated.append(next_tok)
-        current_ids = torch.cat([current_ids, next_tok.unsqueeze(1)], dim=1)
+        context_ids = all_ids[:, :prompt_len + step] if gen_cfg.repetition_penalty != 1.0 else None
+        next_tok = sample_token(logits, gen_cfg, generated_ids=context_ids)
+        all_ids[:, prompt_len + step] = next_tok
+        n_generated += 1
 
-    if not generated:
+    if n_generated == 0:
         return torch.empty(B, 0, dtype=torch.long, device=device)
-    return torch.stack(generated, dim=1)  # (B, max_new_tokens)
+    return all_ids[:, prompt_len:prompt_len + n_generated]
 
 
 @torch.inference_mode()
@@ -257,10 +259,13 @@ def stream_generate(
             x = x + block.drop(res_out)
             x = x + block.drop(block.ffn(block.norm2(x)))
 
-    current_ids = prompt_ids  # (1, T)
+    # Pre-allocate buffer to avoid O(T^2) cat
+    max_new = gen_cfg.max_new_tokens
+    all_ids = torch.empty(1, prompt_len + max_new, dtype=torch.long, device=device)
+    all_ids[:, :prompt_len] = prompt_ids
     last_tok: int = -1
 
-    for step in range(gen_cfg.max_new_tokens):
+    for step in range(max_new):
         pos = prompt_len - 1 + step
 
         if step == 0:
@@ -280,7 +285,8 @@ def stream_generate(
             x = x + block.drop(block.ffn(block.norm2(x)))
 
         logits = model.lm_head(model.norm_out(x))  # (1, vocab_size)
-        next_tok = sample_token(logits, gen_cfg, generated_ids=current_ids)
+        context_ids = all_ids[:, :prompt_len + step] if gen_cfg.repetition_penalty != 1.0 else None
+        next_tok = sample_token(logits, gen_cfg, generated_ids=context_ids)
         last_tok = next_tok.item()
-        current_ids = torch.cat([current_ids, next_tok.unsqueeze(1)], dim=1)
+        all_ids[:, prompt_len + step] = last_tok
         yield last_tok

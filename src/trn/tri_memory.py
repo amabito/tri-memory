@@ -33,9 +33,7 @@ Limitations:
 """
 from __future__ import annotations
 
-import math
-import re
-from dataclasses import dataclass
+from collections import deque
 from typing import Optional
 
 import torch
@@ -47,216 +45,9 @@ from trn.baseline import CausalSelfAttention
 from trn.config import TRNConfig
 from trn.resonance import TemporalResonanceLayer
 from trn.retrieval import RetrievalIndex
-from trn.utils import build_rms_norm
-
-
-# ---------------------------------------------------------------------------
-# SaliencyArchiver: scores evicted chunks for selective archival
-# ---------------------------------------------------------------------------
-
-class SaliencyArchiver:
-    """Rule-based saliency scorer for evicted chunks.
-
-    Score components:
-      a * number_score      -- contains digits / hex / IDs
-      b * entity_score      -- uppercase sequences (proper nouns)
-      c * tool_boundary     -- chunk at tool output boundary
-      d * high_token_var    -- high variance in token IDs (diverse content)
-      e * rare_token_score  -- contains rare tokens (high ID)
-
-    Chunks above threshold are archived to RetrievalIndex.
-    """
-
-    def __init__(
-        self,
-        threshold: float = 0.3,
-        vocab_size: int = 256,
-        w_number: float = 0.3,
-        w_entity: float = 0.2,
-        w_tool: float = 0.25,
-        w_variance: float = 0.15,
-        w_rare: float = 0.1,
-    ) -> None:
-        self.threshold = threshold
-        self.vocab_size = vocab_size
-        self.w_number = w_number
-        self.w_entity = w_entity
-        self.w_tool = w_tool
-        self.w_variance = w_variance
-        self.w_rare = w_rare
-
-    def score(
-        self,
-        token_ids: list[int],
-        is_tool_boundary: bool = False,
-        loss_values: Optional[list[float]] = None,
-    ) -> tuple[float, dict[str, float]]:
-        """Compute saliency score for a chunk of token IDs.
-
-        Returns:
-            (total_score, component_dict) for logging/explainability
-        """
-        n = len(token_ids) if token_ids else 1
-
-        # Number/ID score: fraction of tokens in "high" range (likely digits/special)
-        high_range_count = sum(1 for t in token_ids if t >= self.vocab_size * 3 // 4)
-        number_score = high_range_count / n
-
-        # Entity score: consecutive high-value tokens (proxy for named entities)
-        max_consecutive_high = 0
-        current_run = 0
-        for t in token_ids:
-            if t >= self.vocab_size // 2:
-                current_run += 1
-                max_consecutive_high = max(max_consecutive_high, current_run)
-            else:
-                current_run = 0
-        entity_score = min(1.0, max_consecutive_high / 4.0)
-
-        # Tool boundary
-        tool_score = 1.0 if is_tool_boundary else 0.0
-
-        # Token variance (diverse content = more informative)
-        if n > 1:
-            t_tensor = torch.tensor(token_ids, dtype=torch.float32)
-            variance_score = min(1.0, t_tensor.std().item() / (self.vocab_size / 4))
-        else:
-            variance_score = 0.0
-
-        # Rare token score
-        rare_threshold = self.vocab_size * 7 // 8
-        rare_count = sum(1 for t in token_ids if t >= rare_threshold)
-        rare_score = min(1.0, rare_count / max(n * 0.1, 1))
-
-        total = (
-            self.w_number * number_score
-            + self.w_entity * entity_score
-            + self.w_tool * tool_score
-            + self.w_variance * variance_score
-            + self.w_rare * rare_score
-        )
-
-        components = {
-            "number": number_score,
-            "entity": entity_score,
-            "tool": tool_score,
-            "variance": variance_score,
-            "rare": rare_score,
-            "total": total,
-        }
-        return total, components
-
-    def should_archive(self, score: float) -> bool:
-        return score >= self.threshold
-
-
-# ---------------------------------------------------------------------------
-# RuleBasedMemoryRouter: decides memory source weights
-# ---------------------------------------------------------------------------
-
-@dataclass
-class RouterDecision:
-    """Explainable routing decision."""
-    g_kv: float
-    g_trn: float
-    g_ret: float
-    reason: str
-
-
-class RuleBasedMemoryRouter:
-    """Rule-based router for KV / TRN / Retrieval gate weights.
-
-    Features used:
-      - recent token density (are query tokens likely in KV window?)
-      - entity density (proper nouns -> likely retrieval target)
-      - numeric density (numbers/IDs -> likely retrieval target)
-      - is_tool_query (tool output boundary -> retrieval)
-      - position (early positions -> KV dominant)
-
-    Returns (g_kv, g_trn, g_ret) gate weights summing to 1.0.
-    """
-
-    def __init__(
-        self,
-        kv_window_size: int = 64,
-        retrieval_entity_threshold: float = 0.3,
-        retrieval_numeric_threshold: float = 0.3,
-    ) -> None:
-        self.kv_window_size = kv_window_size
-        self.retrieval_entity_threshold = retrieval_entity_threshold
-        self.retrieval_numeric_threshold = retrieval_numeric_threshold
-
-    def route(
-        self,
-        position: int,
-        query_token_ids: list[int],
-        vocab_size: int = 256,
-        is_tool_query: bool = False,
-        has_retrieval_chunks: bool = False,
-    ) -> RouterDecision:
-        """Decide gate weights based on current context features."""
-
-        # Default: mostly KV
-        g_kv = 0.6
-        g_trn = 0.3
-        g_ret = 0.1
-
-        n = len(query_token_ids) if query_token_ids else 1
-
-        # Position-based: early positions are entirely KV
-        if position < self.kv_window_size:
-            return RouterDecision(
-                g_kv=0.8, g_trn=0.15, g_ret=0.05,
-                reason="within_kv_window"
-            )
-
-        # Numeric density: high numeric content -> retrieval for exact lookup
-        high_range = sum(1 for t in query_token_ids if t >= vocab_size * 3 // 4)
-        numeric_density = high_range / n
-
-        # Entity density
-        entity_range = sum(1 for t in query_token_ids if t >= vocab_size // 2)
-        entity_density = entity_range / n
-
-        # Tool query -> heavy retrieval
-        if is_tool_query:
-            g_kv = 0.2
-            g_trn = 0.1
-            g_ret = 0.7
-            reason = "tool_query"
-        elif numeric_density > self.retrieval_numeric_threshold:
-            g_kv = 0.3
-            g_trn = 0.2
-            g_ret = 0.5
-            reason = "numeric_lookup"
-        elif entity_density > self.retrieval_entity_threshold:
-            g_kv = 0.3
-            g_trn = 0.2
-            g_ret = 0.5
-            reason = "entity_lookup"
-        else:
-            # Far from window: TRN becomes more important
-            distance_factor = min(1.0, (position - self.kv_window_size) / 500.0)
-            g_kv = 0.5 - 0.2 * distance_factor
-            g_trn = 0.3 + 0.2 * distance_factor
-            g_ret = 0.2
-            reason = f"distance_blend(d={position})"
-
-        # If no retrieval chunks available, redistribute to KV+TRN
-        if not has_retrieval_chunks and g_ret > 0.05:
-            redistribute = g_ret - 0.05
-            g_kv += redistribute * 0.4
-            g_trn += redistribute * 0.6
-            g_ret = 0.05
-            reason += "+no_ret_chunks"
-
-        # Normalize
-        total = g_kv + g_trn + g_ret
-        g_kv /= total
-        g_trn /= total
-        g_ret /= total
-
-        return RouterDecision(g_kv=g_kv, g_trn=g_trn, g_ret=g_ret, reason=reason)
+from trn.router import RuleBasedMemoryRouter, RouterDecision
+from trn.saliency import SaliencyArchiver
+from trn.utils import build_rms_norm, build_sinusoidal_pe
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +130,6 @@ class TriMemoryBlock(nn.Module):
             d_model=cfg.d_model,
             K=cfg.n_oscillators,
             use_parallel_scan=cfg.use_parallel_scan,
-            log_phase=cfg.log_phase,
             clamp_resonance=cfg.clamp_resonance,
             resonance_clamp_val=cfg.resonance_clamp_val,
             amplitude_max=cfg.amplitude_max,
@@ -347,7 +137,9 @@ class TriMemoryBlock(nn.Module):
             res_scale_init=cfg.res_scale_init,
             gate_bias_init=cfg.gate_bias_init,
             phase_mode=cfg.phase_mode,
+            scan_chunk_size=cfg.scan_chunk_size,
         )
+        self.trn_out_norm = build_rms_norm(cfg.d_model)
 
         # 3-way gate: g = softmax([g_kv, g_trn, g_ret])
         self.gate_proj = nn.Linear(cfg.d_model, 3, bias=True)
@@ -364,49 +156,146 @@ class TriMemoryBlock(nn.Module):
         self.drop = (
             nn.Dropout(cfg.dropout) if cfg.dropout > 0.0 else nn.Identity()
         )
+        self._window_mask_cache: dict[tuple[int, int, str], Tensor] = {}
 
-    def _make_window_mask(self, T: int, device: torch.device) -> Tensor:
-        W = self.window_size
-        mask = torch.full((T, T), float("-inf"), device=device)
-        for i in range(T):
-            start = max(0, i - W + 1)
-            mask[i, start: i + 1] = 0.0
+    _MASK_CACHE_MAX = 16
+
+    def _make_window_mask(self, T: int, W: int, device: torch.device) -> Tensor:
+        cache_key = (T, W, str(device))
+        cached = self._window_mask_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        row = torch.arange(T, device=device).unsqueeze(1)
+        col = torch.arange(T, device=device).unsqueeze(0)
+        mask = torch.where(
+            (col <= row) & (col >= row - W + 1),
+            torch.tensor(0.0, device=device),
+            torch.tensor(float("-inf"), device=device),
+        )
+        if len(self._window_mask_cache) >= self._MASK_CACHE_MAX:
+            # Evict oldest entry
+            oldest_key = next(iter(self._window_mask_cache))
+            del self._window_mask_cache[oldest_key]
+        self._window_mask_cache[cache_key] = mask
         return mask
+
+    @staticmethod
+    def _make_streaming_mask(
+        T_q: int, T_kv: int, W: int, offset: int, device: torch.device,
+    ) -> Tensor:
+        """Build causal sliding-window mask for streaming attention.
+
+        query positions: [offset, offset+T_q)
+        key positions:   [offset+T_q-T_kv, offset+T_q)  (past + current)
+
+        mask[i, j]: query i attends to key j iff:
+          - causal: key_pos <= query_pos
+          - window:  key_pos >= query_pos - W + 1
+        """
+        q_pos = torch.arange(T_q, device=device) + offset          # absolute query positions
+        k_pos = torch.arange(T_kv, device=device) + (offset + T_q - T_kv)  # absolute key positions
+        q_pos = q_pos.unsqueeze(1)  # (T_q, 1)
+        k_pos = k_pos.unsqueeze(0)  # (1, T_kv)
+        mask = torch.where(
+            (k_pos <= q_pos) & (k_pos >= q_pos - W + 1),
+            torch.tensor(0.0, device=device),
+            torch.tensor(float("-inf"), device=device),
+        )
+        return mask  # (T_q, T_kv)
 
     def forward(
         self,
         x: Tensor,
         retrieval_context: Optional[Tensor] = None,
-    ) -> Tensor:
-        """Forward pass with optional retrieval context.
+        retrieval_tokens: Optional[Tensor] = None,
+        past_k: Optional[Tensor] = None,
+        past_v: Optional[Tensor] = None,
+        position_offset: int = 0,
+    ) -> tuple[Tensor, Optional[Tensor], Optional[Tensor]]:
+        """Forward pass with optional retrieval context and KV cache.
 
         Args:
             x: (B, T, d_model)
             retrieval_context: (B, d_model) mean of retrieved chunks, or None
+            retrieval_tokens: (B, R, d_model) prefix tokens for prefix mode, or None
+            past_k: (B, n_heads, past_len, head_dim) cached keys, or None
+            past_v: (B, n_heads, past_len, head_dim) cached values, or None
+            position_offset: absolute position of first token in x
+
+        Returns:
+            (output, new_past_k, new_past_v) where new_past_* are truncated
+            to window_size. When past_k/past_v are None (batch mode), returns
+            (output, None, None) for backward compatibility.
         """
         B, T, C = x.shape
         h = self.norm1(x)
+        use_cache = past_k is not None
 
-        # Windowed attention
-        mask = self._make_window_mask(T, x.device)
+        # Compute Q, K, V for current chunk
         q, k, v = self.attn.qkv(h).split(C, dim=-1)
         n_heads = self.attn.n_heads
         head_dim = self.attn.head_dim
         q = q.view(B, T, n_heads, head_dim).transpose(1, 2)
         k = k.view(B, T, n_heads, head_dim).transpose(1, 2)
         v = v.view(B, T, n_heads, head_dim).transpose(1, 2)
-        attn_out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+
+        # Prefix mode: compute K/V from retrieval tokens and prepend
+        use_prefix = (
+            self.enable_retrieval
+            and retrieval_tokens is not None
+            and retrieval_tokens.shape[1] > 0
+        )
+        if use_prefix:
+            R = retrieval_tokens.shape[1]
+            h_ret = self.norm1(retrieval_tokens)
+            qkv_ret = self.attn.qkv(h_ret)
+            _, k_ret, v_ret = qkv_ret.split(C, dim=-1)
+            k_ret = k_ret.view(B, R, n_heads, head_dim).transpose(1, 2)
+            v_ret = v_ret.view(B, R, n_heads, head_dim).transpose(1, 2)
+        else:
+            R = 0
+
+        if use_cache:
+            # Concat past KV with current KV
+            k_full = torch.cat([past_k, k], dim=2)  # (B, n_heads, past+T, head_dim)
+            v_full = torch.cat([past_v, v], dim=2)
+            T_kv = k_full.shape[2]
+            mask = self._make_streaming_mask(T, T_kv, self.window_size, position_offset, x.device)
+            attn_out = F.scaled_dot_product_attention(q, k_full, v_full, attn_mask=mask)
+
+            # Truncate cache to window_size
+            keep = min(self.window_size, T_kv)
+            new_past_k = k_full[:, :, -keep:, :].detach()
+            new_past_v = v_full[:, :, -keep:, :].detach()
+        else:
+            # Batch mode: no cache, standard window mask
+            if use_prefix:
+                # Prepend retrieval K/V to sequence K/V
+                k_full = torch.cat([k_ret, k], dim=2)  # (B, n_heads, R+T, head_dim)
+                v_full = torch.cat([v_ret, v], dim=2)
+                # Mask: prefix columns = 0 (always attend), sequence columns = window mask
+                window_mask = self._make_window_mask(T, self.window_size, x.device)  # (T, T)
+                prefix_mask = torch.zeros(T, R, device=x.device)  # all Q attend to all prefix
+                full_mask = torch.cat([prefix_mask, window_mask], dim=1)  # (T, R+T)
+                attn_out = F.scaled_dot_product_attention(q, k_full, v_full, attn_mask=full_mask)
+            else:
+                mask = self._make_window_mask(T, self.window_size, x.device)
+                attn_out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+            new_past_k = None
+            new_past_v = None
+
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, T, C)
         attn_out = self.attn.proj(attn_out)
 
-        # TRN (zero if disabled)
+        # TRN (zero if disabled), RMSNorm to prevent unbounded norm growth
         if self.enable_trn:
-            trn_out = self.trn(h)
+            trn_out = self.trn_out_norm(self.trn(h))
         else:
             trn_out = torch.zeros_like(attn_out)
 
-        # Retrieval context (broadcast to all positions)
-        if self.enable_retrieval and retrieval_context is not None:
+        # Retrieval context (broadcast to all positions) -- pooled mode
+        # In prefix mode, retrieval flows through attention, so ret_out = 0
+        if self.enable_retrieval and retrieval_context is not None and not use_prefix:
             ret_out = self.ret_proj(retrieval_context)  # (B, d_model)
             ret_out = ret_out.unsqueeze(1).expand(B, T, C)  # (B, T, C)
         else:
@@ -432,7 +321,7 @@ class TriMemoryBlock(nn.Module):
 
         x = x + self.drop(mixed)
         x = x + self.drop(self.ffn(self.norm2(x)))
-        return x
+        return x, new_past_k, new_past_v
 
 
 # ---------------------------------------------------------------------------
@@ -467,6 +356,9 @@ class TriMemoryEngine(nn.Module):
         saliency_threshold: float = 0.3,
         enable_trn: bool = True,
         enable_retrieval: bool = True,
+        search_mode: str = "hidden",
+        search_w_hidden: float = 0.7,
+        search_w_bag: float = 0.3,
     ) -> None:
         super().__init__()
         self.cfg = cfg
@@ -476,6 +368,9 @@ class TriMemoryEngine(nn.Module):
         self.state_tokens_m = state_tokens_m
         self.enable_trn = enable_trn
         self.enable_retrieval = enable_retrieval
+        self.search_mode = search_mode
+        self.search_w_hidden = search_w_hidden
+        self.search_w_bag = search_w_bag
 
         self.embedding = nn.Embedding(cfg.vocab_size, cfg.d_model)
         self.drop_emb = (
@@ -483,7 +378,7 @@ class TriMemoryEngine(nn.Module):
         )
 
         # Sinusoidal PE
-        pe = self._build_sinusoidal_pe(cfg.max_seq_len, cfg.d_model)
+        pe = build_sinusoidal_pe(cfg.max_seq_len, cfg.d_model)
         self.register_buffer("pe", pe)
 
         self.blocks = nn.ModuleList([
@@ -496,6 +391,17 @@ class TriMemoryEngine(nn.Module):
 
         if cfg.tie_weights:
             self.lm_head.weight = self.embedding.weight
+
+        # Retrieval query projection (marker mode)
+        self.query_proj = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+        nn.init.normal_(self.query_proj.weight, std=0.01)
+
+        # Retrieval copy head: direct token prediction from retrieval context
+        self.ret_copy_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=True)
+        nn.init.normal_(self.ret_copy_head.weight, std=0.02)
+
+        # Copy-mix alpha: learnable scalar for mixing copy logits into main logits
+        self.copy_mix_alpha = nn.Parameter(torch.tensor(1.0))
 
         # StateTokenAdapter
         self.state_adapter = StateTokenAdapter(
@@ -518,22 +424,12 @@ class TriMemoryEngine(nn.Module):
         self.router = RuleBasedMemoryRouter(kv_window_size=window_size)
 
         # Eviction buffer
-        self._eviction_buffer: list[int] = []
+        self._eviction_buffer: deque[int] = deque(maxlen=chunk_size * 2)
         self._global_step: int = 0
-        self._router_log: list[RouterDecision] = []
+        _ROUTER_LOG_MAX = 1024
+        self._router_log: deque[RouterDecision] = deque(maxlen=_ROUTER_LOG_MAX)
 
         self._init_weights()
-
-    @staticmethod
-    def _build_sinusoidal_pe(max_len: int, d_model: int) -> Tensor:
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(max_len).unsqueeze(1).float()
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
-        )
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        return pe
 
     def _init_weights(self) -> None:
         nn.init.normal_(self.embedding.weight, std=self.cfg.d_model ** -0.5)
@@ -574,9 +470,20 @@ class TriMemoryEngine(nn.Module):
         if len(self.retrieval_index) == 0:
             return None
 
+        # Compute query_hidden from embedding mean for hidden/hybrid modes
+        query_hidden = None
+        if self.search_mode in ("hidden", "hybrid"):
+            with torch.no_grad():
+                q_ids = torch.tensor(query_tokens, device=device).unsqueeze(0)
+                query_hidden = self.embedding(q_ids).mean(dim=1).squeeze(0)
+
         results = self.retrieval_index.search(
             query_token_ids=query_tokens,
             top_k=self.retrieval_top_k,
+            query_hidden=query_hidden,
+            mode=self.search_mode,
+            w_hidden=self.search_w_hidden,
+            w_bag=self.search_w_bag,
         )
         if not results:
             return None
@@ -589,17 +496,21 @@ class TriMemoryEngine(nn.Module):
         self,
         input_ids: Tensor,
         labels: Optional[Tensor] = None,
+        retrieval_query_mode: str = "mean",
+        retrieval_query_pos: int | None = None,
+        retrieval_temperature: float = 5.0,
+        retrieval_decoder_mode: str = "pooled",
+        copy_mix_positions: Optional[list[tuple[int, int]]] = None,
     ) -> dict:
         """Forward pass with tri-memory integration.
 
-        Retrieval simulation during training:
-          Early tokens (outside KV window) are pooled per-chunk and
-          the chunk with highest token overlap to the query region
-          is selected as retrieval context. This teaches the retrieval
-          gate to use archived information for old fact recall.
-
-        The retrieval context embedding participates in the forward graph
-        (through ret_proj) so the gate learns when to rely on it.
+        Args:
+            retrieval_query_mode: "mean" (KV window mean) or "marker" (query_proj at pos)
+            retrieval_query_pos: position of query marker token for "marker" mode
+            retrieval_temperature: softmax temperature for retrieval attention
+            retrieval_decoder_mode: "pooled", "prefix", or "copy_mix"
+            copy_mix_positions: list of (seq_pos, chunk_token_idx) pairs for copy_mix mode.
+                At each seq_pos in the logits, add alpha * copy_logits[:, chunk_token_idx, :].
         """
         B, T = input_ids.shape
         pe_len = min(T, self.pe.size(0))
@@ -607,18 +518,58 @@ class TriMemoryEngine(nn.Module):
         x[:, :pe_len] = x[:, :pe_len] + self.pe[:pe_len]
 
         # Build per-sample retrieval context from early tokens
-        retrieval_context = self._build_train_retrieval(input_ids, x)
+        retrieval_context, ret_weights, ret_chunk_starts, context_tokens = (
+            self._build_train_retrieval(
+                input_ids, x,
+                retrieval_temperature=retrieval_temperature,
+                query_mode=retrieval_query_mode,
+                query_pos=retrieval_query_pos,
+            )
+        )
 
-        # Telemetry: track retrieval usage
-        self._last_retrieval_used = retrieval_context is not None
+        # Copy head: token-level prediction from retrieval context
+        # context_tokens: (B, chunk_size, d_model) -- per-token hidden states
+        if context_tokens is not None:
+            copy_logits = self.ret_copy_head(context_tokens)  # (B, chunk_size, vocab_size)
+        else:
+            copy_logits = None
+
+        # Telemetry (single dict, cleared each forward)
         archive_end = T - self.window_size
-        self._last_n_chunks = max(0, archive_end // self.chunk_size) if T > self.window_size + self.chunk_size else 0
+        self._telemetry = {
+            "ret_weights": ret_weights,
+            "ret_chunk_starts": ret_chunk_starts,
+            "retrieval_used": retrieval_context is not None,
+            "n_chunks": max(0, archive_end // self.chunk_size) if T > self.window_size + self.chunk_size else 0,
+        }
+
+        # Select decoder mode
+        use_prefix = retrieval_decoder_mode == "prefix"
+        ret_ctx = None if use_prefix else retrieval_context
+        ret_tok = context_tokens if use_prefix else None
 
         for block in self.blocks:
-            x = block(x, retrieval_context=retrieval_context)
+            x, _, _ = block(
+                x,
+                retrieval_context=ret_ctx,
+                retrieval_tokens=ret_tok,
+            )
 
         x = self.norm_out(x)
         logits = self.lm_head(x)
+
+        # copy_mix: add copy_logits at specified sequence positions
+        if (
+            retrieval_decoder_mode == "copy_mix"
+            and copy_logits is not None
+            and copy_mix_positions is not None
+        ):
+            for seq_pos, chunk_tok_idx in copy_mix_positions:
+                if seq_pos < logits.shape[1] and chunk_tok_idx < copy_logits.shape[1]:
+                    logits[:, seq_pos, :] = (
+                        logits[:, seq_pos, :]
+                        + self.copy_mix_alpha * copy_logits[:, chunk_tok_idx, :]
+                    )
 
         result: dict = {"logits": logits}
         if labels is not None:
@@ -634,27 +585,30 @@ class TriMemoryEngine(nn.Module):
         self,
         input_ids: Tensor,
         x: Tensor,
-    ) -> Optional[Tensor]:
+        retrieval_temperature: float = 5.0,
+        query_mode: str = "mean",
+        query_pos: int | None = None,
+    ) -> tuple[Optional[Tensor], Optional[Tensor], Optional[list[int]], Optional[Tensor]]:
         """Build retrieval context for training via embedding cosine
         similarity with soft attention over early chunks.
 
-        Strategy:
-          1. Partition early tokens (before KV window) into chunks
-          2. Compute chunk embeddings from x (grad-enabled)
-          3. Compute query embedding from the query region
-          4. Score chunks by cosine similarity with query
-          5. Soft-attention weighted combination (all chunks, differentiable)
+        Args:
+            query_mode: "mean" (KV window mean) or "marker" (query_proj at query_pos)
+            query_pos: absolute position of the query marker token (required for "marker")
 
-        The soft attention allows gradients to flow through all chunks,
-        teaching the model which chunks are relevant for query answering.
-
-        Returns (B, d_model) or None if sequence too short.
+        Returns:
+            (context, weights, chunk_starts, context_tokens) where:
+              context: (B, d_model) or None -- pooled retrieval context
+              weights: (B, n_chunks) soft attention weights or None
+              chunk_starts: list of chunk start positions or None
+              context_tokens: (B, chunk_size, d_model) or None -- prefix tokens
         """
         B, T = input_ids.shape
+        C = x.shape[-1]
         if not self.enable_retrieval:
-            return None
+            return None, None, None, None
         if T <= self.window_size + self.chunk_size:
-            return None
+            return None, None, None, None
 
         archive_end = T - self.window_size
 
@@ -662,17 +616,30 @@ class TriMemoryEngine(nn.Module):
         chunk_starts = list(range(0, archive_end, self.chunk_size))
         n_chunks = len(chunk_starts)
         if n_chunks == 0:
-            return None
+            return None, None, None, None
 
         # Build chunk embeddings: (B, n_chunks, d_model)
+        # Also build per-token chunk matrix for prefix mode: (B, n_chunks, chunk_size, d_model)
         chunk_embs = []
+        chunk_tokens_list = []
         for cs in chunk_starts:
             ce = min(cs + self.chunk_size, archive_end)
-            chunk_embs.append(x[:, cs:ce, :].mean(dim=1))  # (B, d_model)
+            chunk_hidden = x[:, cs:ce, :]  # (B, actual_len, d_model)
+            chunk_embs.append(chunk_hidden.mean(dim=1))  # (B, d_model)
+            # Pad to chunk_size if needed
+            actual_len = ce - cs
+            if actual_len < self.chunk_size:
+                pad = torch.zeros(B, self.chunk_size - actual_len, C, device=x.device)
+                chunk_hidden = torch.cat([chunk_hidden, pad], dim=1)
+            chunk_tokens_list.append(chunk_hidden)  # (B, chunk_size, d_model)
         chunk_matrix = torch.stack(chunk_embs, dim=1)  # (B, n_chunks, d_model)
+        chunk_tokens_matrix = torch.stack(chunk_tokens_list, dim=1)  # (B, n_chunks, chunk_size, d_model)
 
-        # Query embedding: mean of query region
-        query_emb = x[:, -self.window_size:, :].mean(dim=1)  # (B, d_model)
+        # Query embedding
+        if query_mode == "marker" and query_pos is not None and query_pos < T:
+            query_emb = self.query_proj(x[:, query_pos, :])  # (B, d_model)
+        else:
+            query_emb = x[:, -self.window_size:, :].mean(dim=1)  # (B, d_model)
 
         # Cosine similarity: (B, n_chunks)
         q_norm = F.normalize(query_emb, dim=-1).unsqueeze(1)  # (B, 1, d_model)
@@ -680,11 +647,18 @@ class TriMemoryEngine(nn.Module):
         scores = (c_norm * q_norm).sum(dim=-1)  # (B, n_chunks)
 
         # Soft attention with temperature (sharper = more selective)
-        weights = torch.softmax(scores * 5.0, dim=-1)  # (B, n_chunks)
+        weights = torch.softmax(scores * retrieval_temperature, dim=-1)  # (B, n_chunks)
 
-        # Weighted combination of chunk embeddings
+        # Weighted combination of chunk embeddings (pooled mode)
         context = (weights.unsqueeze(-1) * chunk_matrix).sum(dim=1)  # (B, d_model)
-        return context
+
+        # Weighted combination of chunk tokens (prefix mode)
+        # weights: (B, n_chunks) -> (B, n_chunks, 1, 1)
+        context_tokens = (
+            weights.unsqueeze(-1).unsqueeze(-1) * chunk_tokens_matrix
+        ).sum(dim=1)  # (B, chunk_size, d_model)
+
+        return context, weights, chunk_starts, context_tokens
 
     def forward_with_memory(
         self,
@@ -693,36 +667,63 @@ class TriMemoryEngine(nn.Module):
         states_i: list[Tensor],
         position: int,
         labels: Optional[Tensor] = None,
-    ) -> tuple[dict, list[Tensor], list[Tensor]]:
-        """Forward pass with explicit TRN state management and retrieval.
+        past_kv: Optional[list[tuple[Tensor, Tensor]]] = None,
+    ) -> tuple[dict, list[Tensor], list[Tensor], list[tuple[Tensor, Tensor]]]:
+        """Forward pass with explicit TRN state, retrieval, and KV cache.
 
         Used for streaming/incremental processing where we maintain
-        eviction buffer and retrieval index across calls.
+        eviction buffer, retrieval index, and KV cache across calls.
+
+        Args:
+            past_kv: list of (past_k, past_v) per layer, or None to initialize.
 
         Returns:
-            (result_dict, updated_states_r, updated_states_i)
+            (result_dict, updated_states_r, updated_states_i, updated_past_kv)
         """
         B, T = input_ids.shape
         device = input_ids.device
+        n_layers = len(self.blocks)
+
+        # Initialize KV cache if not provided
+        if past_kv is None:
+            n_heads = self.blocks[0].attn.n_heads
+            head_dim = self.blocks[0].attn.head_dim
+            past_kv = [
+                (torch.zeros(B, n_heads, 0, head_dim, device=device),
+                 torch.zeros(B, n_heads, 0, head_dim, device=device))
+                for _ in range(n_layers)
+            ]
 
         # Get retrieval context from current input tokens
+        # NOTE: retrieval query uses batch 0 tokens (retrieval index is shared, not per-sample)
         query_tokens = input_ids[0].tolist() if B > 0 else []
         retrieval_context = self._get_retrieval_context(query_tokens, device)
         # Ensure (B, d_model) shape for TriMemoryBlock
         if retrieval_context is not None and retrieval_context.dim() == 1:
             retrieval_context = retrieval_context.unsqueeze(0).expand(B, -1)
 
-        # Build hidden states
+        # Build hidden states -- cache embedding output for TRN state reuse
         pe_start = min(position, self.pe.size(0) - T)
         pe_end = min(pe_start + T, self.pe.size(0))
-        x = self.drop_emb(self.embedding(input_ids))
+        param_dtype = next(self.parameters()).dtype
+        emb = self.embedding(input_ids).to(param_dtype)  # (B, T, d_model)
+        x = self.drop_emb(emb.clone())
         actual_pe_len = pe_end - pe_start
         if actual_pe_len > 0:
             x[:, :actual_pe_len] = x[:, :actual_pe_len] + self.pe[pe_start:pe_end]
 
-        # Process through blocks
-        for block in self.blocks:
-            x = block(x, retrieval_context=retrieval_context)
+        # Process through blocks with KV cache
+        new_past_kv = []
+        for layer_idx, block in enumerate(self.blocks):
+            pk, pv = past_kv[layer_idx]
+            x, new_pk, new_pv = block(
+                x,
+                retrieval_context=retrieval_context,
+                past_k=pk,
+                past_v=pv,
+                position_offset=position,
+            )
+            new_past_kv.append((new_pk, new_pv))
 
         x = self.norm_out(x)
         logits = self.lm_head(x)
@@ -736,12 +737,9 @@ class TriMemoryEngine(nn.Module):
                 shift_labels.view(-1),
             )
 
-        # Update TRN states via step_single for each token
-        param_dtype = next(self.parameters()).dtype
+        # Update TRN states via step_single -- reuse cached embedding
         for t_idx in range(T):
-            tok = input_ids[:, t_idx]
-            x_tok = self.embedding(tok).to(param_dtype)
-            x_tok = self.drop_emb(x_tok)
+            x_tok = self.drop_emb(emb[:, t_idx])  # reuse cached embedding
             pos = position + t_idx
             if pos < self.pe.size(0):
                 x_tok = x_tok + self.pe[pos]
@@ -758,10 +756,13 @@ class TriMemoryEngine(nn.Module):
                 )
 
             # Eviction buffer
-            self._eviction_buffer.append(tok[0].item())
+            tok_id = input_ids[0, t_idx].item()
+            self._eviction_buffer.append(tok_id)
             if len(self._eviction_buffer) >= self.chunk_size:
-                evicted = self._eviction_buffer[:self.chunk_size]
-                self._eviction_buffer = self._eviction_buffer[self.chunk_size:]
+                evicted = list(self._eviction_buffer)[:self.chunk_size]
+                # Remove consumed tokens from deque
+                for _ in range(self.chunk_size):
+                    self._eviction_buffer.popleft()
                 # Compute hidden mean for evicted chunk
                 with torch.no_grad():
                     evicted_tensor = torch.tensor(evicted, device=device).unsqueeze(0)
@@ -769,7 +770,7 @@ class TriMemoryEngine(nn.Module):
                 self._process_eviction(evicted, hidden, self._global_step)
                 self._global_step += 1
 
-        return result, states_r, states_i
+        return result, states_r, states_i, new_past_kv
 
     def collect_gate_telemetry(self) -> dict:
         """Collect gate ratios and retrieval stats from last forward pass.
@@ -789,12 +790,13 @@ class TriMemoryEngine(nn.Module):
             gate_trn /= n_blocks
             gate_ret /= n_blocks
 
+        telemetry = getattr(self, "_telemetry", {})
         return {
             "router_kv_ratio": gate_kv,
             "router_trn_ratio": gate_trn,
             "router_ret_ratio": gate_ret,
-            "retrieval_used": getattr(self, "_last_retrieval_used", False),
-            "archive_chunk_count": getattr(self, "_last_n_chunks", 0),
+            "retrieval_used": telemetry.get("retrieval_used", False),
+            "archive_chunk_count": telemetry.get("n_chunks", 0),
             "state_bytes": self.state_memory_bytes,
             "retained_kv_tokens": self.window_size,
         }
@@ -810,34 +812,12 @@ class TriMemoryEngine(nn.Module):
         self,
         weight_decay: float = 0.1,
     ) -> list[dict]:
-        decay: set[str] = set()
-        no_decay: set[str] = set()
-
-        for name, param in self.named_parameters():
-            if not param.requires_grad:
-                continue
-            if (
-                "omega_base" in name
-                or "res_scale" in name
-                or name.endswith(".bias")
-                or "norm" in name.lower()
-                or "embedding" in name
-            ):
-                no_decay.add(name)
-            else:
-                decay.add(name)
-
-        params = {n: p for n, p in self.named_parameters() if p.requires_grad}
-        return [
-            {"params": [params[n] for n in sorted(decay)], "weight_decay": weight_decay},
-            {"params": [params[n] for n in sorted(no_decay)], "weight_decay": 0.0},
-        ]
+        from trn.utils import configure_optimizer_param_groups
+        return configure_optimizer_param_groups(self, weight_decay)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
-        total = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        if non_embedding:
-            total -= self.embedding.weight.numel()
-        return total
+        from trn.utils import num_parameters
+        return num_parameters(self, non_embedding)
 
     @property
     def state_memory_bytes(self) -> int:

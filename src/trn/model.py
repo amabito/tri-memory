@@ -106,10 +106,14 @@ class TRNModel(nn.Module):
             for _ in range(self.cfg.n_layers)
         ]
 
-        generated = prompt_ids.clone()
+        # Pre-allocate buffer to avoid O(T^2) torch.cat
+        all_ids = torch.empty(
+            B, max_new_tokens, dtype=torch.long, device=device,
+        )
 
-        for pos in range(prompt_len, prompt_len + max_new_tokens):
-            token = generated[:, -1]                    # (B,)
+        for step in range(max_new_tokens):
+            pos = prompt_len + step
+            token = prompt_ids[:, -1] if step == 0 else all_ids[:, step - 1]
             x     = self.embedding(token).to(param_dtype)  # (B, d_model)
             x     = self.drop_emb(x)
 
@@ -135,17 +139,15 @@ class TRNModel(nn.Module):
                 logit[logit < top_vals[:, -1:]] = float("-inf")
 
             probs    = torch.softmax(logit, dim=-1)
-            next_tok = torch.multinomial(probs, 1)       # (B, 1)
-            generated = torch.cat([generated, next_tok], dim=1)
+            next_tok = torch.multinomial(probs, 1).squeeze(-1)  # (B,)
+            all_ids[:, step] = next_tok
 
-        return generated[:, prompt_len:]
+        return all_ids
 
     def num_parameters(self, non_embedding: bool = True) -> int:
         """Count trainable parameters, optionally excluding the embedding table."""
-        total = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        if non_embedding:
-            total -= self.embedding.weight.numel()
-        return total
+        from .utils import num_parameters
+        return num_parameters(self, non_embedding)
 
     def configure_optimizer_param_groups(
         self,
@@ -155,27 +157,5 @@ class TRNModel(nn.Module):
 
         omega_base and all bias / norm parameters are excluded from weight decay.
         """
-        decay     = set()
-        no_decay  = set()
-
-        for name, param in self.named_parameters():
-            if not param.requires_grad:
-                continue
-            if (
-                "omega_base" in name
-                or "res_scale" in name
-                or name.endswith(".bias")
-                or "norm" in name.lower()
-                or "embedding" in name
-            ):
-                no_decay.add(name)
-            else:
-                decay.add(name)
-
-        params_by_name = {n: p for n, p in self.named_parameters()}
-        return [
-            {"params": [params_by_name[n] for n in sorted(decay)],
-             "weight_decay": weight_decay},
-            {"params": [params_by_name[n] for n in sorted(no_decay)],
-             "weight_decay": 0.0},
-        ]
+        from .utils import configure_optimizer_param_groups
+        return configure_optimizer_param_groups(self, weight_decay)

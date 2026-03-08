@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import math
 import torch
 import torch.nn as nn
 from torch import Tensor
 
 from .oscillator import OscillatorProjection
-from .scan import parallel_resonance_scan, sequential_resonance_scan
+from .scan import chunked_resonance_scan, parallel_resonance_scan
 
 
 class TemporalResonanceLayer(nn.Module):
@@ -32,7 +33,6 @@ class TemporalResonanceLayer(nn.Module):
         d_model: int,
         K: int,
         use_parallel_scan: bool = True,
-        log_phase: bool = True,
         clamp_resonance: bool = False,
         resonance_clamp_val: float = 10.0,
         amplitude_max: float = 3.0,
@@ -40,11 +40,12 @@ class TemporalResonanceLayer(nn.Module):
         res_scale_init: float = 0.05,
         gate_bias_init: float = 0.65,
         phase_mode: str = "log",
+        scan_chunk_size: int = 16,
     ) -> None:
         super().__init__()
         self.K = K
         self.use_parallel_scan = use_parallel_scan
-        self.log_phase = log_phase
+        self.scan_chunk_size = scan_chunk_size
         self.clamp_resonance = clamp_resonance
         self.resonance_clamp_val = resonance_clamp_val
         self.state_norm_enabled = state_norm
@@ -72,7 +73,7 @@ class TemporalResonanceLayer(nn.Module):
     def _compute_positions(self, n: int, device: torch.device) -> Tensor:
         """Compute position encoding based on phase_mode."""
         positions = torch.arange(n, device=device, dtype=torch.float32).view(1, n, 1)
-        if self.phase_mode == "log" or self.log_phase:
+        if self.phase_mode == "log":
             positions = torch.log1p(positions)
         return positions
 
@@ -93,17 +94,19 @@ class TemporalResonanceLayer(nn.Module):
 
         one_m_a = 1.0 - alpha
 
-        # Cast to fp32 before scan — critical for mixed-precision training.
+        # Cast to fp32 before scan -- critical for mixed-precision training.
+        cos_angle = torch.cos(angle)
+        sin_angle = torch.sin(angle)
         alpha_f  = alpha.float()
-        drive_r  = (one_m_a * A * torch.cos(angle)).float()
-        drive_i  = (one_m_a * A * torch.sin(angle)).float()
+        drive_r  = (one_m_a * A * cos_angle).float()
+        drive_i  = (one_m_a * A * sin_angle).float()
 
         # Disable AMP inside the scan to enforce fp32 arithmetic.
         with torch.amp.autocast("cuda", enabled=False):
             if self.use_parallel_scan and x.is_cuda:
                 r_r, r_i = parallel_resonance_scan(alpha_f, drive_r, drive_i)
             else:
-                r_r, r_i = sequential_resonance_scan(alpha_f, drive_r, drive_i)
+                r_r, r_i = chunked_resonance_scan(alpha_f, drive_r, drive_i, chunk_size=self.scan_chunk_size)
 
         # P0-D: Always-on per-channel state normalization (default ON)
         if self.state_norm_enabled:
@@ -121,8 +124,8 @@ class TemporalResonanceLayer(nn.Module):
         r_i = r_i.to(x.dtype)
 
         # Demodulate: project resonance onto the local carrier.
-        cos_a = torch.cos(angle).to(x.dtype)
-        sin_a = torch.sin(angle).to(x.dtype)
+        cos_a = cos_angle.to(x.dtype)
+        sin_a = sin_angle.to(x.dtype)
         rho   = r_r * cos_a + r_i * sin_a   # (B, n, K)
 
         # P0-A: apply learnable res_scale before projection
@@ -161,14 +164,15 @@ class TemporalResonanceLayer(nn.Module):
         alpha_t = alpha_t[:, 0]
 
         pos = float(position)
-        if self.phase_mode == "log" or self.log_phase:
-            import math
+        if self.phase_mode == "log":
             pos = math.log1p(pos)
         angle = omega_t * pos + phi_t  # (B, K)
 
         one_m_a = 1.0 - alpha_t
-        v_r = (one_m_a * A_t * torch.cos(angle)).float()
-        v_i = (one_m_a * A_t * torch.sin(angle)).float()
+        cos_angle = torch.cos(angle)
+        sin_angle = torch.sin(angle)
+        v_r = (one_m_a * A_t * cos_angle).float()
+        v_i = (one_m_a * A_t * sin_angle).float()
 
         # State update in fp32.
         alpha_f = alpha_t.float()
@@ -180,8 +184,8 @@ class TemporalResonanceLayer(nn.Module):
             r_real, r_imag = self._apply_state_norm(r_real, r_imag)
 
         # Demodulate and project.
-        cos_a = torch.cos(angle).to(r_real.dtype)
-        sin_a = torch.sin(angle).to(r_real.dtype)
+        cos_a = cos_angle.to(r_real.dtype)
+        sin_a = sin_angle.to(r_real.dtype)
         rho   = r_real * cos_a + r_imag * sin_a   # (B, K) fp32
 
         # P0-A: apply learnable res_scale

@@ -14,7 +14,6 @@ Has the same interface as TRNModel and TransformerModel:
 """
 from __future__ import annotations
 
-import math
 from typing import Optional
 
 import torch
@@ -151,41 +150,13 @@ class HybridModel(nn.Module):
         weight_decay: float = 0.1,
     ) -> list[dict]:
         """Split parameters into weight-decay and no-decay groups."""
-        decay: set[str] = set()
-        no_decay: set[str] = set()
-
-        for name, param in self.named_parameters():
-            if not param.requires_grad:
-                continue
-            if (
-                "omega_base" in name
-                or "res_scale" in name
-                or name.endswith(".bias")
-                or "norm" in name.lower()
-                or "embedding" in name
-            ):
-                no_decay.add(name)
-            else:
-                decay.add(name)
-
-        params_by_name = {n: p for n, p in self.named_parameters()}
-        return [
-            {
-                "params": [params_by_name[n] for n in sorted(decay)],
-                "weight_decay": weight_decay,
-            },
-            {
-                "params": [params_by_name[n] for n in sorted(no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
+        from .utils import configure_optimizer_param_groups
+        return configure_optimizer_param_groups(self, weight_decay)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
         """Count trainable parameters, optionally excluding the embedding table."""
-        total = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        if non_embedding:
-            total -= self.embedding.weight.numel()
-        return total
+        from .utils import num_parameters
+        return num_parameters(self, non_embedding)
 
     def layer_type_summary(self) -> str:
         """Return a compact string showing layer type (T=TRN, A=Attention)."""

@@ -30,7 +30,6 @@ def _make_p0_config() -> TRNConfig:
         dropout=0.0,
         use_parallel_scan=False,
         tie_weights=True,
-        log_phase=True,
         amplitude_max=3.0,
         state_norm=True,
         res_scale_init=0.05,
@@ -221,7 +220,6 @@ class TestPhaseMode:
     def test_linear_phase_override(self) -> None:
         cfg = _make_p0_config()
         cfg.phase_mode = "linear"
-        cfg.log_phase = False
         model = TRNModel(cfg)
         for block in model.blocks:
             assert block.resonance.phase_mode == "linear"

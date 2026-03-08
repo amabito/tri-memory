@@ -104,24 +104,22 @@ def test_resonance_n_equals_max_seq(layer: TemporalResonanceLayer, cfg: TRNConfi
 # ---------------------------------------------------------------------------
 
 def test_resonance_state_fp32_internal(cfg: TRNConfig) -> None:
-    """sequential_resonance_scan must receive fp32 alpha even when the layer
+    """chunked_resonance_scan must receive fp32 alpha even when the layer
     computes in a different dtype.
 
-    We monkeypatch sequential_resonance_scan to record the dtype of alpha,
+    We monkeypatch chunked_resonance_scan to record the dtype of alpha,
     run a fp32 forward pass, and verify that the captured dtype is float32.
     The resonance.py forward always casts alpha to .float() before the scan,
-    so this must hold regardless of the input dtype (as long as the model
-    weights match the input dtype).
+    so this must hold regardless of the input dtype.
     """
     import trn.resonance as resonance_mod
+    from trn.scan import chunked_resonance_scan as original_chunked
 
     captured_dtypes: list[torch.dtype] = []
 
-    original_scan = sequential_resonance_scan
-
-    def recording_scan(alpha, drive_r, drive_i):
+    def recording_scan(alpha, drive_r, drive_i, **kwargs):
         captured_dtypes.append(alpha.dtype)
-        return original_scan(alpha, drive_r, drive_i)
+        return original_chunked(alpha, drive_r, drive_i, **kwargs)
 
     torch.manual_seed(0)
     layer_fp32 = TemporalResonanceLayer(
@@ -131,15 +129,15 @@ def test_resonance_state_fp32_internal(cfg: TRNConfig) -> None:
     ).eval()
 
     # Patch at the module level used by TemporalResonanceLayer.forward
-    original = resonance_mod.sequential_resonance_scan
-    resonance_mod.sequential_resonance_scan = recording_scan
+    original = resonance_mod.chunked_resonance_scan
+    resonance_mod.chunked_resonance_scan = recording_scan
 
     x = torch.randn(1, 4, cfg.d_model)  # fp32
     try:
         with torch.no_grad():
             layer_fp32(x)
     finally:
-        resonance_mod.sequential_resonance_scan = original
+        resonance_mod.chunked_resonance_scan = original
 
     assert len(captured_dtypes) > 0, "scan was never called"
     assert all(

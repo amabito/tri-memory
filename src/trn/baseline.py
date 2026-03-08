@@ -1,6 +1,5 @@
 """GPT-style Transformer baseline for comparison with TRN."""
 from __future__ import annotations
-import math
 from typing import Optional
 import torch
 import torch.nn as nn
@@ -80,14 +79,8 @@ class TransformerModel(nn.Module):
 
     @staticmethod
     def _build_sinusoidal_pe(max_len: int, d_model: int) -> Tensor:
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(max_len).unsqueeze(1).float()
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
-        )
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        return pe  # (max_len, d_model)
+        from .utils import build_sinusoidal_pe
+        return build_sinusoidal_pe(max_len, d_model)
 
     def forward(self, input_ids: Tensor, labels: Optional[Tensor] = None) -> dict:
         B, T = input_ids.shape
@@ -111,23 +104,9 @@ class TransformerModel(nn.Module):
 
     def configure_optimizer_param_groups(self, weight_decay: float) -> list[dict]:
         """Separate weight_decay params from no-decay (biases, norms, embeddings)."""
-        decay: set[str] = set()
-        no_decay: set[str] = set()
-        for name, param in self.named_parameters():
-            if not param.requires_grad:
-                continue
-            if param.dim() < 2 or "norm" in name or "embed" in name or name.endswith(".bias"):
-                no_decay.add(name)
-            else:
-                decay.add(name)
-        params = {n: p for n, p in self.named_parameters() if p.requires_grad}
-        return [
-            {"params": [params[n] for n in sorted(decay)], "weight_decay": weight_decay},
-            {"params": [params[n] for n in sorted(no_decay)], "weight_decay": 0.0},
-        ]
+        from .utils import configure_optimizer_param_groups
+        return configure_optimizer_param_groups(self, weight_decay)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
-        total = sum(p.numel() for p in self.parameters())
-        if non_embedding:
-            total -= self.embed.weight.numel()
-        return total
+        from .utils import num_parameters
+        return num_parameters(self, non_embedding)

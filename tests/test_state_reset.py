@@ -37,8 +37,8 @@ def test_state_independent_between_batches(layer: TemporalResonanceLayer) -> Non
 
 
 def test_log_phase_no_crash() -> None:
-    """log_phase=True must produce finite outputs."""
-    layer = TemporalResonanceLayer(d_model=32, K=16, use_parallel_scan=False, log_phase=True).eval()
+    """phase_mode='log' must produce finite outputs."""
+    layer = TemporalResonanceLayer(d_model=32, K=16, use_parallel_scan=False, phase_mode="log").eval()
     x = torch.randn(2, 32, 32)
     with torch.no_grad():
         out = layer(x)
