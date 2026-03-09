@@ -70,10 +70,24 @@ def _scan_chunk(
 
     # Drive contribution via cumsum-rescale:
     # scaled_drive = drive / alpha_cum, then cumsum, then * alpha_cum
-    # Add eps to avoid division by zero when alpha_cum -> 0
+    #
+    # When alpha is exactly 0 for all steps up to t, alpha_cum[t] = 0
+    # and the rescale trick produces huge * 0 which doesn't cancel in fp32.
+    # For true zero alpha, r_t = d_t (no state carry).
+    # For small-but-nonzero alpha, the rescale trick loses precision as
+    # chunk_size grows (cumprod underflows), but this is inherent to the
+    # vectorized approach and acceptable for typical chunk_size <= 16.
+    has_zero_alpha = (alpha_chunk == 0.0).any()
     inv_alpha_cum = 1.0 / alpha_cum.clamp(min=1e-30)
     scaled_drive = drive_chunk * inv_alpha_cum
     drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum  # (B, C, K)
+
+    # Where alpha_cum is exactly 0 (only when alpha=0 throughout),
+    # replace with raw drive (r_t = d_t when alpha = 0).
+    if has_zero_alpha:
+        exact_zero = alpha_cum == 0.0
+        if exact_zero.any():
+            drive_contrib = torch.where(exact_zero, drive_chunk, drive_contrib)
 
     chunk_out = prev_contrib + drive_contrib  # (B, C, K)
     r_final = chunk_out[:, -1]  # (B, K)
