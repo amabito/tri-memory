@@ -119,6 +119,27 @@ python scripts/run_trimemory_v5_trn_reeval.py \
 
 Runtime: ~3.5 hours on RTX 5090.
 
+## Completion Statement
+
+**TriMemory prototype is COMPLETED on the H6 synthetic benchmark.**
+
+Evidence:
+- Retrieval contribution confirmed (H1 PASS)
+- TRN contribution confirmed (H2 PASS)
+- Full 3-path integration confirmed (H3 PASS)
+- Stability confirmed across 10/10 seeds (H4 PASS)
+
+Scope:
+This completion claim is limited to the H6 synthetic benchmark under the final default setting
+(Fix C + Fix D + baseline init). Scaling, real-data validation, and productionization remain
+future work.
+
+## Post-Benchmark Fixes (2026-03-13)
+
+F.R.I.D.A.Y. 3-body parallel math review identified 14 issues across the codebase.
+All fixed in commit `907f5aa`. The 3 CRITICAL fixes (C1, C2, C3) affect streaming
+inference paths only -- training forward() and the H6 benchmark results above are unaffected.
+
 ## Summary
 
 TriMemory's three-path architecture is validated on the H6 synthetic benchmark.
