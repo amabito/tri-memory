@@ -149,26 +149,29 @@ TRN cannot do content-addressed retrieval. 8.8% selective copy vs 96.2% for Tran
 
 32 episodes x 3 seeds, 300 steps, bf16, CUDA. Hidden search finds better chunks, but decode success is still 0.000 -- the current bottleneck is the decoder/mixer integration, not search.
 
-## Current Status
+## Final Results (2026-03-13)
 
-Retrieval path: validated. Gold chunk selection works. Hidden-state search outperforms bag-of-token.
+V5 A/B/C/D benchmark, seeds 1--10, 3000 steps, Fix C + Fix D.
 
-Copy-mix (additive `main_logits + alpha * copy_logits`): confirmed effective for old fact recovery at the token level.
+| Config | Composite (mean) | Pattern (mean) | Old Fact (mean) |
+|--------|-------------------|----------------|-----------------|
+| A (KV only) | 0.263 | 0.095 | 0.218 |
+| B (KV+TRN) | 0.457 | 0.678 | 0.258 |
+| C (KV+Ret) | 0.369 | 0.225 | 0.433 |
+| D (Full) | **0.676** | **0.805** | **0.719** |
 
-Full model (KV + Retrieval + TRN): `D > max(A,B,C)` observed in composite score under specific settings.
+D >= max(A,B,C) in 10/10 seeds (mean delta +0.165). No collapses.
 
-TRN standalone: pattern learning grows at 3000 steps. Seed dependence remains.
+**Hypotheses**: H1 (Retrieval) PASS, H2 (TRN) PASS, H3 (Integration) PASS, H4 (Stability) PASS.
 
-Decoder/mixer integration: current bottleneck. Even when the correct chunk is retrieved and the gate uses it, the model often fails to produce the correct token. This is the next target.
-
-See [ROADMAP.md](ROADMAP.md) for details.
+See [docs/FINAL_VERDICT.md](docs/FINAL_VERDICT.md) for per-seed results and methodology.
 
 ## Known Limitations
 
 - TRN cannot perform content-addressed retrieval. Structural property of linear recurrence.
-- Decoder/mixer does not yet reliably convert retrieved chunks into correct tokens (decode success = 0.000 in streaming eval).
-- All experiments use 1--100M parameter models. Scaling behavior at 1B+ is unknown.
-- TRN seed dependence is still high for pattern tasks.
+- All experiments use toy-scale models (1--100M parameters). Scaling behavior at 1B+ is unknown.
+- B config (KV+TRN) still shows seed-dependent pattern failure (2/10 stuck), though D recovers.
+- Streaming eval decoder integration remains a separate engineering challenge.
 
 See [docs/TRN_LIMITATIONS.md](docs/TRN_LIMITATIONS.md).
 

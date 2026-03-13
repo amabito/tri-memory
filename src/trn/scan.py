@@ -57,6 +57,9 @@ class SafeCumprod(torch.autograd.Function):
         grad_sum = torch.flip(
             torch.cumsum(torch.flip(grad_weighted, [1]), dim=1), [1],
         )
+        # Guard against division by zero. The 1e-30 floor is below float32 subnormal range,
+        # so this only activates for exact-zero alpha. For near-zero alpha, the NaN/Inf
+        # cleanup below handles gradient explosion.
         grad_input = grad_sum / alpha.clamp(min=1e-30)
 
         # Collect statistics before guard
@@ -158,10 +161,13 @@ def _scan_chunk(
     _ALPHA_FLOOR = 1e-30
     inv_alpha_cum = 1.0 / alpha_cum.clamp(min=_ALPHA_FLOOR)
     scaled_drive = drive_chunk * inv_alpha_cum
+    # Clamp prevents Inf propagation through cumsum when alpha_cum is near-zero.
+    scaled_drive = scaled_drive.clamp(-1e6, 1e6)
     drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum  # (B, C, K)
 
-    # Where alpha_cum is effectively zero (alpha << 1 throughout chunk),
-    # replace with raw drive (r_t = d_t when alpha ~ 0).
+    # Fallback: when alpha_cum < 1e-6, state has effectively decayed to zero.
+    # Replace with raw drive as approximation (accumulated contributions from earlier
+    # positions are negligible at this decay level).
     exact_zero = alpha_cum < 1e-6
     if exact_zero.any():
         drive_contrib = torch.where(exact_zero, drive_chunk, drive_contrib)
@@ -191,17 +197,16 @@ def chunked_resonance_scan(
     drive_r: Tensor,   # (B, n, K)  fp32
     drive_i: Tensor,   # (B, n, K)  fp32
     chunk_size: int = 16,
-    inter_chunk_norm: bool = True,
+    inter_chunk_norm: bool = False,
 ) -> tuple[Tensor, Tensor]:
     """Chunked resonance scan: O(n/C) Python loop iterations instead of O(n).
 
     Within each chunk of size C, uses vectorized cumprod + cumsum.
     Between chunks, carries state in a Python loop (C iterations -> n/C iterations).
 
-    When inter_chunk_norm=True (default), applies per-channel max-abs normalization
-    to the carried state between chunks.  This prevents state explosion at large
-    batch sizes without affecting the final output (TemporalResonanceLayer applies
-    state_norm after the scan anyway).
+    WARNING: inter_chunk_norm=True normalizes carried state between chunks, which
+    breaks mathematical equivalence with sequential scan. Default is False.
+    Enable only if state explosion occurs during CPU fallback training.
 
     Autograd tape: n/C nodes instead of n nodes, reducing backward cost proportionally.
     """

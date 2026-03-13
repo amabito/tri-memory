@@ -128,6 +128,10 @@ class TemporalResonanceLayer(nn.Module):
         # Demodulate: project resonance onto the local carrier.
         cos_a = cos_angle.to(x.dtype)
         sin_a = sin_angle.to(x.dtype)
+        # Demodulate: extract real component of r * exp(-j*angle).
+        # Im(r * exp(-j*angle)) = -r_r*sin_a + r_i*cos_a is discarded.
+        # This is a design choice: K real outputs suffice for the d_model projection.
+        # Using both Re and Im would double the input to W_res (2K -> d_model).
         rho   = r_r * cos_a + r_i * sin_a   # (B, n, K)
 
         # Debug: store rho for NaN tracing (detached, no graph impact)
@@ -186,14 +190,23 @@ class TemporalResonanceLayer(nn.Module):
         r_real  = alpha_f * r_real + v_r
         r_imag  = alpha_f * r_imag + v_i
 
-        # P0-D: state normalization
-        if self.state_norm_enabled:
-            r_real, r_imag = self._apply_state_norm(r_real, r_imag)
-
         # Demodulate and project.
+        # state_norm is applied to a COPY used only for demodulation output.
+        # The raw (un-normalized) r_real/r_imag are returned as the carried
+        # state so that inference matches training: forward() runs the scan
+        # without per-step normalization and normalizes the full output once
+        # afterwards. Normalizing the carried state here would feed normalized
+        # values back into the next recurrence step, making inference
+        # mathematically different from training (max-abs norm is nonlinear).
+        if self.state_norm_enabled:
+            r_real_demod, r_imag_demod = self._apply_state_norm(r_real, r_imag)
+        else:
+            r_real_demod, r_imag_demod = r_real, r_imag
+
         cos_a = cos_angle.to(r_real.dtype)
         sin_a = sin_angle.to(r_real.dtype)
-        rho   = r_real * cos_a + r_imag * sin_a   # (B, K) fp32
+        # Demodulate: Re(r * exp(-j*angle)). Im part discarded by design.
+        rho   = r_real_demod * cos_a + r_imag_demod * sin_a   # (B, K) fp32
 
         # P0-A: apply learnable res_scale
         out = (self.res_scale * self.W_res(rho)).to(input_dtype)

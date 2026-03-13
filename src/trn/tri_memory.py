@@ -80,6 +80,9 @@ class StateTokenAdapter(nn.Module):
         Returns:
             state_tokens: (B, m, d_model)
         """
+        # NOTE: Concatenation of (r_r || r_i) loses phase/amplitude geometry.
+        # A complex-aware projection (e.g., magnitude + phase encoding) could
+        # preserve this structure but would change model behavior.
         # Concat all layer states: (B, n_layers * K * 2)
         all_states = []
         for sr, si in zip(states_r, states_i):
@@ -307,10 +310,12 @@ class TriMemoryBlock(nn.Module):
         gate_logits = self.gate_proj(h)  # (B, T, 3)
         if not self.enable_trn:
             gate_logits = gate_logits.clone()
-            gate_logits[:, :, 1] = -1e9
+            # Use -1e4 (safe for fp16 range +-65504) instead of -1e9
+            gate_logits[:, :, 1] = -1e4
         if not self.enable_retrieval:
             gate_logits = gate_logits.clone()
-            gate_logits[:, :, 2] = -1e9
+            # Use -1e4 (safe for fp16 range +-65504) instead of -1e9
+            gate_logits[:, :, 2] = -1e4
         gates = torch.softmax(gate_logits, dim=-1)  # (B, T, 3)
         g_kv = gates[:, :, 0:1]    # (B, T, 1)
         g_trn = gates[:, :, 1:2]
@@ -648,10 +653,14 @@ class TriMemoryEngine(nn.Module):
         c_norm = F.normalize(chunk_matrix, dim=-1)  # (B, n_chunks, d_model)
         scores = (c_norm * q_norm).sum(dim=-1)  # (B, n_chunks)
 
-        # Soft attention with temperature (sharper = more selective)
+        # NOTE: scores * temperature sharpens the distribution (higher temp = sharper).
+        # This is the inverse of the conventional "temperature" scaling (scores / temp).
+        # Semantically this acts as a sharpness parameter.
         weights = torch.softmax(scores * retrieval_temperature, dim=-1)  # (B, n_chunks)
 
-        # Weighted combination of chunk embeddings (pooled mode)
+        # NOTE: cosine similarity uses normalized vectors for scoring, but the
+        # weighted sum uses raw (non-normalized) embeddings. This is intentional:
+        # direction determines relevance, but magnitude carries information.
         context = (weights.unsqueeze(-1) * chunk_matrix).sum(dim=1)  # (B, d_model)
 
         # Weighted combination of chunk tokens (prefix mode)
@@ -716,15 +725,11 @@ class TriMemoryEngine(nn.Module):
 
         # Process through blocks with KV cache
         new_past_kv = []
+        layer_inputs = []
         for layer_idx, block in enumerate(self.blocks):
+            layer_inputs.append(x.detach())
             pk, pv = past_kv[layer_idx]
-            x, new_pk, new_pv = block(
-                x,
-                retrieval_context=retrieval_context,
-                past_k=pk,
-                past_v=pv,
-                position_offset=position,
-            )
+            x, new_pk, new_pv = block(x, retrieval_context=retrieval_context, past_k=pk, past_v=pv, position_offset=position)
             new_past_kv.append((new_pk, new_pv))
 
         x = self.norm_out(x)
@@ -739,15 +744,11 @@ class TriMemoryEngine(nn.Module):
                 shift_labels.view(-1),
             )
 
-        # Update TRN states via step_single -- reuse cached embedding
+        # Update TRN states using per-layer hidden states (matches training path)
         for t_idx in range(T):
-            x_tok = self.drop_emb(emb[:, t_idx])  # reuse cached embedding
             pos = position + t_idx
-            if pos < self.pe.size(0):
-                x_tok = x_tok + self.pe[pos]
-
             for layer_idx, block in enumerate(self.blocks):
-                x_normed = block.norm1(x_tok)
+                x_normed = block.norm1(layer_inputs[layer_idx][:, t_idx, :])
                 _, states_r[layer_idx], states_i[layer_idx] = (
                     block.trn.step_single(
                         x_normed,

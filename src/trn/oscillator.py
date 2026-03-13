@@ -61,9 +61,16 @@ class OscillatorProjection(nn.Module):
         out = self.proj(x)  # (B, n, 4K)
         A_r, Om_r, Ph_r, Ga_r = out.chunk(4, dim=-1)
 
-        A     = F.softplus(A_r).clamp(max=self.amplitude_max)
+        # Soft clamp: tanh squash avoids gradient vanishing at the boundary.
+        # Maps softplus output to (0, amplitude_max) with smooth gradient throughout.
+        A_raw = F.softplus(A_r)
+        A     = self.amplitude_max * torch.tanh(A_raw / self.amplitude_max)
         omega = torch.sigmoid(Om_r) * pi + self.omega_base
         phi   = torch.tanh(Ph_r) * pi
+        # alpha in (0, 1) via sigmoid. Near-0 and near-1 saturation causes
+        # gradient vanishing. Near-0 also triggers cumprod numerical issues
+        # in scan.py. The gate_bias_init (default 0.65) keeps alpha centered
+        # away from extremes at initialization.
         alpha = torch.sigmoid(Ga_r)
 
         return A, omega, phi, alpha
