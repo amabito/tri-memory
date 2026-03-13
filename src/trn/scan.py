@@ -1,7 +1,88 @@
 from __future__ import annotations
 
+import threading
+
 import torch
 from torch import Tensor
+
+
+# Thread-safe counters for SafeCumprod gradient statistics.
+# Accumulated across forward/backward calls; reset by read_and_reset_stats().
+_safe_cumprod_lock = threading.Lock()
+_safe_cumprod_stats = {
+    "total_elements": 0,
+    "nonfinite_elements": 0,
+    "max_abs_before_guard": 0.0,
+    "max_abs_after_guard": 0.0,
+    "calls": 0,
+}
+
+
+def read_and_reset_stats() -> dict:
+    """Return accumulated SafeCumprod stats and reset counters."""
+    with _safe_cumprod_lock:
+        snap = dict(_safe_cumprod_stats)
+        for k in _safe_cumprod_stats:
+            _safe_cumprod_stats[k] = 0 if isinstance(_safe_cumprod_stats[k], int) else 0.0
+    return snap
+
+
+class SafeCumprod(torch.autograd.Function):
+    """torch.cumprod with NaN/Inf-safe backward.
+
+    Forward is identical to torch.cumprod(input, dim=1).
+    Backward uses the standard cumprod gradient formula:
+        grad_input[i] = sum_{j>=i}(grad_output[j] * output[j]) / input[i]
+    but replaces any NaN/Inf in grad_input with zero.
+
+    This preserves V5's rich gradient structure for most elements while
+    preventing the rare NaN explosion that caused D seed2 collapse.
+    """
+
+    @staticmethod
+    def forward(ctx, alpha: Tensor) -> Tensor:
+        result = torch.cumprod(alpha, dim=1)
+        ctx.save_for_backward(alpha, result)
+        return result
+
+    @staticmethod
+    def backward(ctx, grad_output: Tensor) -> Tensor:
+        alpha, result = ctx.saved_tensors
+
+        # Standard cumprod backward:
+        # grad_input[i] = sum_{j>=i}(grad_output[j] * result[j]) / alpha[i]
+        # Implemented as reverse cumsum of (grad_output * result), then / alpha.
+        grad_weighted = grad_output * result  # (B, C, K)
+        # Reverse cumsum: flip, cumsum, flip back
+        grad_sum = torch.flip(
+            torch.cumsum(torch.flip(grad_weighted, [1]), dim=1), [1],
+        )
+        grad_input = grad_sum / alpha.clamp(min=1e-30)
+
+        # Collect statistics before guard
+        max_abs_before = grad_input.abs().max().item()
+        nonfinite_mask = ~torch.isfinite(grad_input)
+        n_nonfinite = nonfinite_mask.sum().item()
+
+        # Zero out NaN/Inf
+        if n_nonfinite > 0:
+            grad_input = torch.where(nonfinite_mask, torch.zeros_like(grad_input), grad_input)
+
+        max_abs_after = grad_input.abs().max().item()
+
+        # Update thread-safe stats
+        with _safe_cumprod_lock:
+            _safe_cumprod_stats["total_elements"] += grad_input.numel()
+            _safe_cumprod_stats["nonfinite_elements"] += n_nonfinite
+            _safe_cumprod_stats["max_abs_before_guard"] = max(
+                _safe_cumprod_stats["max_abs_before_guard"], max_abs_before,
+            )
+            _safe_cumprod_stats["max_abs_after_guard"] = max(
+                _safe_cumprod_stats["max_abs_after_guard"], max_abs_after,
+            )
+            _safe_cumprod_stats["calls"] += 1
+
+        return grad_input
 
 
 def _combine(
@@ -63,31 +144,27 @@ def _scan_chunk(
         (chunk_output, r_final) where chunk_output is (B, C, K) and r_final is (B, K).
     """
     # Cumulative product of alpha within the chunk: (B, C, K)
-    alpha_cum = torch.cumprod(alpha_chunk, dim=1)
+    # Option B: SafeCumprod -- forward identical to torch.cumprod,
+    # backward uses standard cumprod gradient but zeros out NaN/Inf.
+    # This preserves V5's gradient structure (rich multiplicative gradients)
+    # while preventing the rare NaN that caused D seed2 collapse.
+    alpha_cum = SafeCumprod.apply(alpha_chunk)  # (B, C, K)
 
     # Contribution from previous state: alpha_cum * r_prev
     prev_contrib = alpha_cum * r_prev.unsqueeze(1)  # (B, C, K)
 
     # Drive contribution via cumsum-rescale:
     # scaled_drive = drive / alpha_cum, then cumsum, then * alpha_cum
-    #
-    # When alpha is exactly 0 for all steps up to t, alpha_cum[t] = 0
-    # and the rescale trick produces huge * 0 which doesn't cancel in fp32.
-    # For true zero alpha, r_t = d_t (no state carry).
-    # For small-but-nonzero alpha, the rescale trick loses precision as
-    # chunk_size grows (cumprod underflows), but this is inherent to the
-    # vectorized approach and acceptable for typical chunk_size <= 16.
-    has_zero_alpha = (alpha_chunk == 0.0).any()
-    inv_alpha_cum = 1.0 / alpha_cum.clamp(min=1e-30)
+    _ALPHA_FLOOR = 1e-30
+    inv_alpha_cum = 1.0 / alpha_cum.clamp(min=_ALPHA_FLOOR)
     scaled_drive = drive_chunk * inv_alpha_cum
     drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum  # (B, C, K)
 
-    # Where alpha_cum is exactly 0 (only when alpha=0 throughout),
-    # replace with raw drive (r_t = d_t when alpha = 0).
-    if has_zero_alpha:
-        exact_zero = alpha_cum == 0.0
-        if exact_zero.any():
-            drive_contrib = torch.where(exact_zero, drive_chunk, drive_contrib)
+    # Where alpha_cum is effectively zero (alpha << 1 throughout chunk),
+    # replace with raw drive (r_t = d_t when alpha ~ 0).
+    exact_zero = alpha_cum < 1e-6
+    if exact_zero.any():
+        drive_contrib = torch.where(exact_zero, drive_chunk, drive_contrib)
 
     chunk_out = prev_contrib + drive_contrib  # (B, C, K)
     r_final = chunk_out[:, -1]  # (B, K)

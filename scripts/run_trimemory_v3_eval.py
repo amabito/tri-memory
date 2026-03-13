@@ -8,19 +8,21 @@ Changes from V2:
   - Added old_fact_span_partial_acc metric
   - pattern / salient / recent unchanged from V2
 
-Purpose:
-  V2 showed old_fact_span_exact_acc = 0.000 for all models because
-  token_acc ~5% made 3-token span unobservable (0.05^3 ~ 0).
-  V3 narrows old_fact range to 5 types (random baseline 20%) and
-  shortens span to 2 tokens, making retrieval benefit detectable.
+V3-3000 extensions:
+  - --checkpoint-at for mid-training evaluation (default: 1000)
+  - Derived metrics: pattern_B_minus_A, old_fact_C_minus_A, D_minus_maxABC
+  - V3_3000_GO / V3_3000_PLATEAU / INCONCLUSIVE verdict
+  - Cross-step comparison table (checkpoint vs final)
 
 Usage:
     python scripts/run_trimemory_v3_eval.py --steps 1000 --seeds 0 1
-    python scripts/run_trimemory_v3_eval.py --steps 1000 --seeds 0 1 --device cuda
+    python scripts/run_trimemory_v3_eval.py --steps 3000 --seeds 0 1 2 3 4 --checkpoint-at 1000
+    python scripts/run_trimemory_v3_eval.py --steps 3000 --seeds 0 1 2 3 4 --device cuda
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import json
 import os
@@ -62,15 +64,13 @@ RECENT_VALUE_LOW = 200
 RECENT_VALUE_HIGH = 220
 
 # V3 CHANGE: old_fact range narrowed from 20 types to 5 types
-# V2: OLD_FACT_LOW=220, OLD_FACT_HIGH=240 (20 types, random baseline 5%)
-# V3: OLD_FACT_LOW=220, OLD_FACT_HIGH=225 (5 types, random baseline 20%)
 OLD_FACT_LOW = 220
 OLD_FACT_HIGH = 225
 
 PATTERN_TOKEN_LOW = 10
-PATTERN_TOKEN_HIGH = 60     # unchanged from V2
+PATTERN_TOKEN_HIGH = 60
 SALIENT_TOKEN_LOW = 240
-SALIENT_TOKEN_HIGH = 256    # unchanged from V2
+SALIENT_TOKEN_HIGH = 256
 
 # Query markers
 QUERY_OLD_FACT = 5
@@ -82,25 +82,24 @@ QUERY_SALIENT = 8
 W_NORMAL = 1.0
 W_QUERY = 4.0
 W_ANSWER = 8.0
-# V3 CHANGE: fact span weight increased 8.0 -> 10.0
 W_FACT_SPAN = 10.0
-W_PATTERN_TARGET = 6.0      # unchanged from V2
-W_SALIENT = 8.0             # unchanged from V2
+W_PATTERN_TARGET = 6.0
+W_SALIENT = 8.0
 
 # V3 CHANGE: old fact span length 3 -> 2
 OLD_FACT_SPAN_LEN = 2
 
-# Pattern config -- unchanged from V2
+# Pattern config
 PATTERN_PERIOD = 5
 PATTERN_BLOCK_START = 30
 PATTERN_BLOCK_END = 80
 PATTERN_REGIME_SHIFT_POS = 55
 
-# Salient event config -- unchanged from V2
+# Salient event config
 SALIENT_POS_START = 10
 SALIENT_POS_END = 15
 
-# Recent -- unchanged from V2
+# Recent
 RECENT_POS = -16
 
 
@@ -230,7 +229,7 @@ class MixedMemoryDatasetV3(Dataset):
 
 
 # ---------------------------------------------------------------------------
-# Model configs -- identical to V2
+# Model configs
 # ---------------------------------------------------------------------------
 MODEL_CONFIGS = {
     "kv": {"enable_trn": False, "enable_retrieval": False},
@@ -261,7 +260,7 @@ def seed_everything(seed: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Weighted cross-entropy -- identical to V2
+# Weighted cross-entropy
 # ---------------------------------------------------------------------------
 def weighted_cross_entropy(
     logits: torch.Tensor,
@@ -279,7 +278,7 @@ def weighted_cross_entropy(
 
 
 # ---------------------------------------------------------------------------
-# Training -- identical structure to V2
+# Training with optional checkpoint
 # ---------------------------------------------------------------------------
 def train_model(
     model: TriMemoryEngine,
@@ -287,7 +286,13 @@ def train_model(
     steps: int,
     device: torch.device,
     lr: float = LR,
-) -> tuple[list[dict], bool]:
+    checkpoint_at: int | None = None,
+) -> tuple[list[dict], bool, dict | None]:
+    """Train model and optionally save a checkpoint state dict.
+
+    Returns:
+        (loss_curve, stable, checkpoint_state_dict_or_None)
+    """
     model = model.to(device).train()
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -295,6 +300,7 @@ def train_model(
     records = []
     stable = True
     loader_it = iter(loader)
+    checkpoint_state = None
 
     for step in range(1, steps + 1):
         try:
@@ -322,7 +328,12 @@ def train_model(
             if step % 200 == 0:
                 print(f"      step {step}/{steps} loss={loss.item():.4f}", flush=True)
 
-    return records, stable
+        # Checkpoint snapshot
+        if checkpoint_at is not None and step == checkpoint_at:
+            checkpoint_state = copy.deepcopy(model.state_dict())
+            print(f"      [checkpoint saved at step {step}]", flush=True)
+
+    return records, stable, checkpoint_state
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +351,7 @@ def evaluate_model(
     recent_correct = 0
     old_fact_token_correct = 0
     old_fact_span_exact = 0
-    old_fact_span_partial = 0  # V3: at least 1 of 2 correct
+    old_fact_span_partial = 0
     pattern_correct = 0
     salient_correct = 0
     total = 0
@@ -419,7 +430,7 @@ def evaluate_model(
 
 
 # ---------------------------------------------------------------------------
-# Composite -- same formula as V2
+# Composite
 # ---------------------------------------------------------------------------
 def compute_composite(m: dict, stable: bool) -> float:
     penalty = 0.0 if stable else 0.05
@@ -436,66 +447,94 @@ def compute_composite(m: dict, stable: bool) -> float:
 # Sanity checks (V3-specific)
 # ---------------------------------------------------------------------------
 def sanity_checks(dataset: MixedMemoryDatasetV3) -> dict:
-    """Verify V3 constraints."""
-    checks = {
+    return {
         "old_fact_token_range_narrowed": (OLD_FACT_HIGH - OLD_FACT_LOW) <= 10,
         "fact_span_len_valid": dataset.old_fact_span_len in {2, 3},
-        "fact_span_outside_kv": True,  # pos 0..1, KV window is last 64
+        "fact_span_outside_kv": True,
         "query_weight_mask_nonzero": W_FACT_SPAN > 1.0 and W_ANSWER > 1.0,
         "old_fact_types": OLD_FACT_HIGH - OLD_FACT_LOW,
         "old_fact_random_baseline_per_token": 1.0 / (OLD_FACT_HIGH - OLD_FACT_LOW),
     }
-    return checks
 
 
 # ---------------------------------------------------------------------------
-# Gate judgment (V3)
+# Derived metrics computation
 # ---------------------------------------------------------------------------
-def gate_judgment(all_results: list[dict]) -> dict:
-    model_means: dict[str, dict] = {}
+METRIC_KEYS = [
+    "composite_score", "recent_exact_acc", "old_fact_token_acc",
+    "old_fact_span_exact_acc", "old_fact_span_partial_acc",
+    "pattern_token_acc", "salient_event_acc",
+]
+
+
+def compute_model_means(results: list[dict]) -> dict[str, dict[str, float]]:
+    """Compute per-model mean metrics from a list of result rows."""
+    means: dict[str, dict[str, float]] = {}
     for model_name in MODEL_CONFIGS:
-        rows = [r for r in all_results if r["model"] == model_name]
+        rows = [r for r in results if r["model"] == model_name]
         if not rows:
             continue
         n = len(rows)
-        model_means[model_name] = {
-            k: sum(r[k] for r in rows) / n
-            for k in [
-                "composite_score", "recent_exact_acc", "old_fact_token_acc",
-                "old_fact_span_exact_acc", "old_fact_span_partial_acc",
-                "pattern_token_acc", "salient_event_acc",
-            ]
-        }
+        means[model_name] = {k: sum(r[k] for r in rows) / n for k in METRIC_KEYS}
+    return means
 
+
+def compute_derived_metrics(model_means: dict[str, dict[str, float]]) -> dict[str, float]:
+    """Compute cross-model derived metrics for V3-3000 judgment."""
+    a = model_means.get("kv", {})
+    b = model_means.get("kv_trn", {})
+    c = model_means.get("kv_ret", {})
+    d = model_means.get("trimemory", {})
+
+    pattern_B_minus_A = b.get("pattern_token_acc", 0) - a.get("pattern_token_acc", 0)
+    old_fact_C_minus_A = c.get("old_fact_token_acc", 0) - a.get("old_fact_token_acc", 0)
+    old_fact_span_C_minus_A = c.get("old_fact_span_exact_acc", 0) - a.get("old_fact_span_exact_acc", 0)
+    salient_C_minus_A = c.get("salient_event_acc", 0) - a.get("salient_event_acc", 0)
+
+    max_abc_comp = max(
+        a.get("composite_score", 0),
+        b.get("composite_score", 0),
+        c.get("composite_score", 0),
+    )
+    D_minus_maxABC = d.get("composite_score", 0) - max_abc_comp
+
+    return {
+        "pattern_B_minus_A": pattern_B_minus_A,
+        "old_fact_C_minus_A": old_fact_C_minus_A,
+        "old_fact_span_C_minus_A": old_fact_span_C_minus_A,
+        "salient_C_minus_A": salient_C_minus_A,
+        "D_minus_maxABC": D_minus_maxABC,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Gate judgment (V3 -- 1000-step verdict)
+# ---------------------------------------------------------------------------
+def gate_judgment(all_results: list[dict]) -> dict:
+    model_means = compute_model_means(all_results)
     criteria = {}
 
-    # 1. old_fact_token_acc(C) > old_fact_token_acc(A)
     c_tok = model_means.get("kv_ret", {}).get("old_fact_token_acc", 0)
     a_tok = model_means.get("kv", {}).get("old_fact_token_acc", 0)
     criteria["old_fact_token_C_gt_A"] = {"pass": c_tok > a_tok, "C": c_tok, "A": a_tok}
 
-    # 2. old_fact_span_exact_acc(C) >= old_fact_span_exact_acc(A)
     c_span = model_means.get("kv_ret", {}).get("old_fact_span_exact_acc", 0)
     a_span = model_means.get("kv", {}).get("old_fact_span_exact_acc", 0)
     criteria["old_fact_span_C_ge_A"] = {"pass": c_span >= a_span, "C": c_span, "A": a_span}
 
-    # 3. salient_event_acc(C) >= A
     c_sal = model_means.get("kv_ret", {}).get("salient_event_acc", 0)
     a_sal = model_means.get("kv", {}).get("salient_event_acc", 0)
     criteria["salient_C_ge_A"] = {"pass": c_sal >= a_sal, "C": c_sal, "A": a_sal}
 
-    # 4. pattern_B_gt_A or neutral
     b_pat = model_means.get("kv_trn", {}).get("pattern_token_acc", 0)
     a_pat = model_means.get("kv", {}).get("pattern_token_acc", 0)
     criteria["pattern_B_ge_A"] = {"pass": b_pat >= a_pat, "B": b_pat, "A": a_pat}
 
-    # 5. no NaN/Inf
     no_nan = all(r.get("stable", True) for r in all_results)
     criteria["no_nan_inf"] = {"pass": no_nan}
 
     all_pass = all(c["pass"] for c in criteria.values())
 
-    # Supplementary: D composite vs max(A,B,C)
     d_comp = model_means.get("trimemory", {}).get("composite_score", 0)
     others_max = max(
         model_means.get("kv", {}).get("composite_score", 0),
@@ -514,6 +553,98 @@ def gate_judgment(all_results: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# V3-3000 verdict: learning vs design insufficiency
+# ---------------------------------------------------------------------------
+GROWTH_THRESHOLD = 0.02  # derived metric must grow by at least this
+ABSOLUTE_THRESHOLD = 0.05  # derived metric must exceed this at 3000 steps
+
+
+def v3_3000_verdict(
+    derived_ckpt: dict[str, float],
+    derived_final: dict[str, float],
+) -> dict:
+    """Compare checkpoint (1000) vs final (3000) derived metrics.
+
+    Returns verdict:
+      V3_3000_GO: signal grows with steps -- learning insufficiency confirmed
+      V3_3000_PLATEAU: signal does not grow -- design insufficiency
+      INCONCLUSIVE: mixed signals
+    """
+    checks = {}
+
+    # 1. old_fact_C_minus_A growth
+    of_ckpt = derived_ckpt["old_fact_C_minus_A"]
+    of_final = derived_final["old_fact_C_minus_A"]
+    of_growth = of_final - of_ckpt
+    checks["old_fact_C_minus_A_grows"] = {
+        "pass": of_growth > GROWTH_THRESHOLD and of_final > ABSOLUTE_THRESHOLD,
+        "ckpt": of_ckpt, "final": of_final, "growth": of_growth,
+    }
+
+    # 2. pattern_B_minus_A growth
+    pb_ckpt = derived_ckpt["pattern_B_minus_A"]
+    pb_final = derived_final["pattern_B_minus_A"]
+    pb_growth = pb_final - pb_ckpt
+    checks["pattern_B_minus_A_grows"] = {
+        "pass": pb_growth > GROWTH_THRESHOLD and pb_final > ABSOLUTE_THRESHOLD,
+        "ckpt": pb_ckpt, "final": pb_final, "growth": pb_growth,
+    }
+
+    # 3. D_minus_maxABC improvement
+    d_ckpt = derived_ckpt["D_minus_maxABC"]
+    d_final = derived_final["D_minus_maxABC"]
+    d_growth = d_final - d_ckpt
+    checks["D_minus_maxABC_improves"] = {
+        "pass": d_final > 0 and d_growth > 0,
+        "ckpt": d_ckpt, "final": d_final, "growth": d_growth,
+    }
+
+    # 4. old_fact_span_C_minus_A growth
+    os_ckpt = derived_ckpt["old_fact_span_C_minus_A"]
+    os_final = derived_final["old_fact_span_C_minus_A"]
+    os_growth = os_final - os_ckpt
+    checks["old_fact_span_C_minus_A_grows"] = {
+        "pass": os_growth > GROWTH_THRESHOLD / 2 and os_final > 0,
+        "ckpt": os_ckpt, "final": os_final, "growth": os_growth,
+    }
+
+    n_pass = sum(1 for c in checks.values() if c["pass"])
+
+    if n_pass >= 3:
+        verdict = "V3_3000_GO"
+    elif n_pass == 0:
+        verdict = "V3_3000_PLATEAU"
+    else:
+        verdict = "INCONCLUSIVE"
+
+    # Interpretation branch
+    if verdict == "V3_3000_GO":
+        interpretation = (
+            "Signal grows with training steps. Learning insufficiency confirmed. "
+            "Next: scale to 10K steps or increase model capacity."
+        )
+    elif verdict == "V3_3000_PLATEAU":
+        interpretation = (
+            "Signal plateaus between 1000 and 3000 steps. Design insufficiency. "
+            "Next: redesign task (increase query signal density, retrieval-only tokens, "
+            "or explicit retrieval supervision)."
+        )
+    else:
+        interpretation = (
+            "Mixed signals -- some metrics grow, others plateau. "
+            "Next: analyze per-metric breakdown to identify which path underperforms."
+        )
+
+    return {
+        "verdict": verdict,
+        "checks": checks,
+        "n_pass": n_pass,
+        "n_total": len(checks),
+        "interpretation": interpretation,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Summary markdown
 # ---------------------------------------------------------------------------
 def generate_summary(
@@ -523,6 +654,8 @@ def generate_summary(
     out_dir: Path,
     steps: int,
     seeds: list[int],
+    checkpoint_results: list[dict] | None = None,
+    checkpoint_step: int | None = None,
 ) -> None:
     models = list(MODEL_CONFIGS.keys())
     model_data = {m: [r for r in all_results if r["model"] == m] for m in models}
@@ -539,29 +672,78 @@ def generate_summary(
         "",
         f"**Steps**: {steps}  |  **Seeds**: {seeds}  |  **Verdict**: {gate['verdict']}",
         "",
+    ]
+
+    # Cross-step comparison if checkpoint available
+    if checkpoint_results is not None and checkpoint_step is not None:
+        ckpt_means = compute_model_means(checkpoint_results)
+        final_means = compute_model_means(all_results)
+        derived_ckpt = compute_derived_metrics(ckpt_means)
+        derived_final = compute_derived_metrics(final_means)
+        v3k = v3_3000_verdict(derived_ckpt, derived_final)
+
+        lines.extend([
+            f"## V3-3000 Verdict: {v3k['verdict']} ({v3k['n_pass']}/{v3k['n_total']} checks pass)",
+            "",
+            f"**Interpretation**: {v3k['interpretation']}",
+            "",
+            "### Cross-Step Derived Metrics",
+            "",
+            f"| Metric | step={checkpoint_step} | step={steps} | Growth |",
+            "|--------|------------|-----------|--------|",
+        ])
+        for key in ["pattern_B_minus_A", "old_fact_C_minus_A", "old_fact_span_C_minus_A",
+                     "salient_C_minus_A", "D_minus_maxABC"]:
+            ck = derived_ckpt[key]
+            fn = derived_final[key]
+            gr = fn - ck
+            lines.append(f"| {key} | {ck:+.4f} | {fn:+.4f} | {gr:+.4f} |")
+
+        lines.extend([
+            "",
+            "### Cross-Step Accuracy Comparison",
+            "",
+            f"| Model | Metric | step={checkpoint_step} | step={steps} | Delta |",
+            "|-------|--------|------------|-----------|-------|",
+        ])
+        for m in models:
+            for metric in ["old_fact_token_acc", "old_fact_span_exact_acc",
+                           "pattern_token_acc", "salient_event_acc", "composite_score"]:
+                ck_val = ckpt_means.get(m, {}).get(metric, 0)
+                fn_val = final_means.get(m, {}).get(metric, 0)
+                delta = fn_val - ck_val
+                lines.append(f"| {labels[m]} | {metric} | {ck_val:.4f} | {fn_val:.4f} | {delta:+.4f} |")
+        lines.append("")
+
+        # V3-3000 check details
+        lines.extend(["### V3-3000 Check Details", ""])
+        for check_name, check in v3k["checks"].items():
+            status = "PASS" if check["pass"] else "FAIL"
+            lines.append(
+                f"- **{check_name}**: {status} "
+                f"(ckpt={check['ckpt']:+.4f}, final={check['final']:+.4f}, "
+                f"growth={check['growth']:+.4f})"
+            )
+        lines.append("")
+
+    # V3 changes section
+    lines.extend([
         "## 1. What Changed from V2",
         "",
-        f"- old_fact token range: V2=220-240 (20 types) -> V3=220-225 (5 types)",
-        f"- old_fact span len: V2=3 -> V3=2",
-        f"- fact span loss weight: V2=8.0 -> V3=10.0",
-        f"- Added old_fact_span_partial_acc metric",
-        f"- Random baseline per token: V2=5% -> V3=20%",
-        f"- Random baseline span exact: V2=0.05^3=0.01% -> V3=0.20^2=4%",
+        "- old_fact token range: V2=220-240 (20 types) -> V3=220-225 (5 types)",
+        "- old_fact span len: V2=3 -> V3=2",
+        "- fact span loss weight: V2=8.0 -> V3=10.0",
+        "- Added old_fact_span_partial_acc metric",
+        "- Random baseline per token: V2=5% -> V3=20%",
+        "- Random baseline span exact: V2=0.05^3=0.01% -> V3=0.20^2=4%",
         "",
-        "## 2. Why This Change Was Made",
-        "",
-        "- V2 old_fact span_exact was 0.000 for all models (unobservable)",
-        "- token_acc ~5% made 3-token span exact ~0.01% (below noise floor)",
-        "- Retrieval benefit was invisible, not absent",
-        "- Narrower range + shorter span raises floor to detectable level",
-        "",
-        "## 3. V3 Results",
+        "## 2. V3 Results (Final)",
         "",
         "### Accuracy Summary",
         "",
         "| Model | Recent | OldFact(tok) | OldFact(span) | OldFact(partial) | Pattern | Salient | Composite |",
         "|-------|--------|-------------|---------------|------------------|---------|---------|-----------|",
-    ]
+    ])
     for m in models:
         vals = model_data[m]
         if not vals:
@@ -595,7 +777,7 @@ def generate_summary(
         lines.append(f"| {labels[m]} | {gk:.4f} | {gt:.4f} | {gr:.4f} |")
 
     # Gate judgment section
-    lines.extend(["", "## 4. Gate Judgment", ""])
+    lines.extend(["", "## 3. Gate Judgment", ""])
     for crit_name, crit in gate["criteria"].items():
         status = "PASS" if crit["pass"] else "FAIL"
         detail = ", ".join(
@@ -605,42 +787,12 @@ def generate_summary(
         lines.append(f"- **{crit_name}**: {status} ({detail})")
     lines.extend(["", f"**Verdict: {gate['verdict']}**", ""])
 
-    # Interpretation
-    mm = gate.get("model_means", {})
-    lines.extend(["## 5. Interpretation", ""])
-
-    c_tok = mm.get("kv_ret", {}).get("old_fact_token_acc", 0)
-    a_tok = mm.get("kv", {}).get("old_fact_token_acc", 0)
-    c_span = mm.get("kv_ret", {}).get("old_fact_span_exact_acc", 0)
-    a_span = mm.get("kv", {}).get("old_fact_span_exact_acc", 0)
-
-    if c_tok > a_tok + 0.02:
-        lines.append("- Retrieval benefit is now OBSERVABLE on old_fact token accuracy")
-    elif c_tok > a_tok:
-        lines.append("- Retrieval shows weak signal on old_fact token accuracy")
-    else:
-        lines.append("- Retrieval benefit still not visible -- may need more steps or further tuning")
-
-    if c_span > 0 and c_span > a_span:
-        lines.append("- Span exact is now workable (above noise floor)")
-    elif c_span > 0:
-        lines.append("- Span exact shows some signal but C does not beat A")
-    else:
-        lines.append("- Span exact remains at zero -- still too hard at 1000 steps")
-
-    lines.append("")
-
-    # Recommended next step
-    lines.extend(["## 6. Recommended Next Step", ""])
-    if gate["verdict"] == "V3_SIGNAL_GO":
-        lines.append("Scale to 3000 steps with same V3 config to confirm signal strengthens.")
-    else:
-        if c_tok <= a_tok:
-            lines.append("Further narrow old_fact range to 3 types, or increase fact_span weight to 15.0.")
-        elif c_span == 0:
-            lines.append("Scale to 3000 steps -- token signal exists but span needs more training.")
-        else:
-            lines.append("Investigate D interference -- C shows signal but D does not benefit.")
+    # Derived metrics
+    final_means = compute_model_means(all_results)
+    derived = compute_derived_metrics(final_means)
+    lines.extend(["## 4. Derived Metrics (Final)", ""])
+    for k, v in derived.items():
+        lines.append(f"- {k}: {v:+.4f}")
     lines.append("")
 
     # Sanity checks
@@ -648,6 +800,23 @@ def generate_summary(
     for k, v in sanity.items():
         lines.append(f"- {k}: {v}")
     lines.append("")
+
+    # What this experiment can / cannot confirm
+    if checkpoint_results is not None:
+        lines.extend([
+            "## What This Experiment Confirms",
+            "",
+            "- Whether V3 micro-differences at 1000 steps grow or plateau at 3000 steps",
+            "- Whether the gap is learning insufficiency (grows) or design insufficiency (plateaus)",
+            "- Per-path contribution: which of TRN/Retrieval shows clearer signal with more training",
+            "",
+            "## What This Experiment Cannot Confirm",
+            "",
+            "- Whether 10K+ steps would change the verdict (only 1K vs 3K compared)",
+            "- Whether a different task design would perform better (only V3 config tested)",
+            "- Statistical significance (5 seeds give rough trends, not p-values)",
+            "",
+        ])
 
     with open(out_dir / "internal_summary.md", "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -739,28 +908,6 @@ def generate_plots(all_results: list[dict], out_dir: Path) -> None:
     fig.savefig(plots_dir / "composite_score.png", dpi=150)
     plt.close(fig)
 
-    # -- oldfact_range_comparison.png (V2 vs V3 annotation) --
-    fig, ax = plt.subplots(figsize=(7, 4))
-    # Just show V3 old_fact metrics with annotation
-    for i, (metric, label, color) in enumerate([
-        ("old_fact_token_acc", "Token Acc", "#4C72B0"),
-        ("old_fact_span_exact_acc", "Span Exact", "#C44E52"),
-        ("old_fact_span_partial_acc", "Span Partial", "#55A868"),
-    ]):
-        means = [_mean_std(model_data[m], metric)[0] for m in models]
-        x_pos = [j + i * 0.25 for j in range(4)]
-        ax.bar(x_pos, means, 0.22, label=label, color=color, alpha=0.8)
-    ax.set_xticks([j + 0.25 for j in range(4)])
-    ax.set_xticklabels(x_labels)
-    ax.set_title("V3 Old Fact Metrics (range=5 types, span=2)")
-    ax.legend()
-    ax.annotate("V2: range=20, span=3\nAll models 0.000 span exact",
-                xy=(0.02, 0.95), xycoords="axes fraction", fontsize=8,
-                va="top", bbox=dict(boxstyle="round", fc="wheat", alpha=0.5))
-    fig.tight_layout()
-    fig.savefig(plots_dir / "oldfact_range_comparison.png", dpi=150)
-    plt.close(fig)
-
     print(f"  Plots saved to {plots_dir}/")
 
 
@@ -775,6 +922,8 @@ def main() -> None:
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1])
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--output", default="artifacts/v3_oldfact_tuning/")
+    parser.add_argument("--checkpoint-at", type=int, default=None,
+                        help="Step to save mid-training checkpoint for cross-step comparison")
     args = parser.parse_args()
 
     device = torch.device(args.device)
@@ -782,9 +931,13 @@ def main() -> None:
     out_dir = Path(args.output) / timestamp
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    use_checkpoint = args.checkpoint_at is not None and args.checkpoint_at < args.steps
+
     print("[Tri-Memory V3 Evaluation -- old_fact Signal Tuning]")
     print(f"  models: {args.models}")
     print(f"  steps: {args.steps}, seeds: {args.seeds}")
+    if use_checkpoint:
+        print(f"  checkpoint-at: {args.checkpoint_at} (cross-step comparison enabled)")
     print(f"  device: {args.device}")
     print(f"  output: {out_dir}")
     print(f"  V3 changes: old_fact range={OLD_FACT_LOW}-{OLD_FACT_HIGH} "
@@ -794,6 +947,7 @@ def main() -> None:
 
     cfg = make_cfg()
     all_results: list[dict] = []
+    checkpoint_results: list[dict] = []
 
     # Sanity checks
     dummy_ds = MixedMemoryDatasetV3(n_samples=1, seed=0)
@@ -816,24 +970,14 @@ def main() -> None:
         "recent_range": f"{RECENT_VALUE_LOW}-{RECENT_VALUE_HIGH}",
         "seq_len": SEQ_LEN,
         "vocab_size": VOCAB_SIZE,
-        "v2_comparison": {
-            "old_fact_range": "220-240 (20 types)",
-            "old_fact_span_len": 3,
-            "old_fact_random_baseline_token": 0.05,
-            "old_fact_random_baseline_span": 0.000125,
-        },
     }
     with open(out_dir / "dataset_config.json", "w") as f:
         json.dump(dataset_config, f, indent=2)
 
     loss_config = {
-        "W_NORMAL": W_NORMAL,
-        "W_QUERY": W_QUERY,
-        "W_ANSWER": W_ANSWER,
-        "W_FACT_SPAN": W_FACT_SPAN,
-        "W_PATTERN_TARGET": W_PATTERN_TARGET,
+        "W_NORMAL": W_NORMAL, "W_QUERY": W_QUERY, "W_ANSWER": W_ANSWER,
+        "W_FACT_SPAN": W_FACT_SPAN, "W_PATTERN_TARGET": W_PATTERN_TARGET,
         "W_SALIENT": W_SALIENT,
-        "v2_W_FACT_SPAN": 8.0,
     }
     with open(out_dir / "weighted_loss_config.json", "w") as f:
         json.dump(loss_config, f, indent=2)
@@ -850,17 +994,21 @@ def main() -> None:
             model = build_model(cfg, model_name)
 
             t0 = time.perf_counter()
-            loss_curve, stable = train_model(model, dataset, args.steps, device)
+            loss_curve, stable, ckpt_state = train_model(
+                model, dataset, args.steps, device,
+                checkpoint_at=args.checkpoint_at if use_checkpoint else None,
+            )
             train_time = time.perf_counter() - t0
             final_loss = loss_curve[-1]["loss"] if loss_curve else float("nan")
             print(f"    Train: {train_time:.1f}s, loss={final_loss:.4f}, stable={stable}", flush=True)
 
+            # Evaluate final model
             eval_result = evaluate_model(model, dataset, device, n_eval=400)
             composite = compute_composite(eval_result, stable)
 
             row = {
-                "model": model_name,
-                "seed": seed,
+                "model": model_name, "seed": seed,
+                "step": args.steps,
                 **eval_result,
                 "composite_score": composite,
                 "final_loss": final_loss,
@@ -880,23 +1028,78 @@ def main() -> None:
                   f"trn={eval_result['router_trn_ratio']:.3f} "
                   f"ret={eval_result['router_ret_ratio']:.3f}", flush=True)
 
+            # Evaluate checkpoint model if available
+            if ckpt_state is not None:
+                model.load_state_dict(ckpt_state)
+                ckpt_eval = evaluate_model(model, dataset, device, n_eval=400)
+                ckpt_composite = compute_composite(ckpt_eval, stable)
+                ckpt_row = {
+                    "model": model_name, "seed": seed,
+                    "step": args.checkpoint_at,
+                    **ckpt_eval,
+                    "composite_score": ckpt_composite,
+                    "final_loss": final_loss,
+                    "train_time_s": train_time,
+                    "stable": stable,
+                }
+                checkpoint_results.append(ckpt_row)
+                print(f"    [ckpt@{args.checkpoint_at}] "
+                      f"old_tok={ckpt_eval['old_fact_token_acc']:.3f} "
+                      f"old_span={ckpt_eval['old_fact_span_exact_acc']:.3f} "
+                      f"pat={ckpt_eval['pattern_token_acc']:.3f} "
+                      f"sal={ckpt_eval['salient_event_acc']:.3f} "
+                      f"comp={ckpt_composite:.4f}", flush=True)
+
             # Per-seed save
             seed_file = out_dir / f"seed_{seed}_data.json"
             seed_data = [r for r in all_results if r["seed"] == seed]
             with open(seed_file, "w") as f:
                 json.dump(seed_data, f, indent=2, default=str)
 
-    # Gate judgment
+    # Gate judgment (on final results)
     gate = gate_judgment(all_results)
     print(f"\n=== GATE VERDICT: {gate['verdict']} ===", flush=True)
     for crit_name, crit in gate["criteria"].items():
         status = "PASS" if crit["pass"] else "FAIL"
         print(f"  {crit_name}: {status}")
 
+    # Derived metrics
+    final_means = compute_model_means(all_results)
+    derived_final = compute_derived_metrics(final_means)
+    print(f"\n=== DERIVED METRICS (step={args.steps}) ===")
+    for k, v in derived_final.items():
+        print(f"  {k}: {v:+.4f}")
+
+    # V3-3000 verdict if checkpoint available
+    if checkpoint_results:
+        ckpt_means = compute_model_means(checkpoint_results)
+        derived_ckpt = compute_derived_metrics(ckpt_means)
+
+        print(f"\n=== DERIVED METRICS (step={args.checkpoint_at}) ===")
+        for k, v in derived_ckpt.items():
+            print(f"  {k}: {v:+.4f}")
+
+        v3k = v3_3000_verdict(derived_ckpt, derived_final)
+        print(f"\n=== V3-3000 VERDICT: {v3k['verdict']} ({v3k['n_pass']}/{v3k['n_total']} pass) ===")
+        for check_name, check in v3k["checks"].items():
+            status = "PASS" if check["pass"] else "FAIL"
+            print(f"  {check_name}: {status} "
+                  f"(ckpt={check['ckpt']:+.4f}, final={check['final']:+.4f}, "
+                  f"growth={check['growth']:+.4f})")
+        print(f"\n  Interpretation: {v3k['interpretation']}")
+
+        # Save V3-3000 verdict
+        with open(out_dir / "v3_3000_verdict.json", "w") as f:
+            json.dump(v3k, f, indent=2, default=str)
+
+        # Save checkpoint results
+        with open(out_dir / "checkpoint_results.json", "w") as f:
+            json.dump(checkpoint_results, f, indent=2, default=str)
+
     # Save CSV
     csv_path = out_dir / "internal_results.csv"
     fieldnames = [
-        "model", "seed", "recent_exact_acc",
+        "model", "seed", "step", "recent_exact_acc",
         "old_fact_token_acc", "old_fact_span_exact_acc", "old_fact_span_partial_acc",
         "pattern_token_acc", "salient_event_acc",
         "composite_score",
@@ -917,12 +1120,39 @@ def main() -> None:
     with open(out_dir / "all_results.json", "w") as f:
         json.dump(all_results, f, indent=2, default=str)
 
+    # Save derived metrics
+    with open(out_dir / "derived_metrics.json", "w") as f:
+        json.dump({
+            "final": derived_final,
+            "checkpoint": compute_derived_metrics(compute_model_means(checkpoint_results))
+            if checkpoint_results else None,
+        }, f, indent=2)
+
     # Plots and summary
     generate_plots(all_results, out_dir)
-    generate_summary(all_results, gate, sanity, out_dir, args.steps, args.seeds)
+    generate_summary(
+        all_results, gate, sanity, out_dir, args.steps, args.seeds,
+        checkpoint_results=checkpoint_results if checkpoint_results else None,
+        checkpoint_step=args.checkpoint_at if checkpoint_results else None,
+    )
 
-    # Print table
-    print(f"\n=== V3 COMPARISON TABLE (mean across seeds) ===")
+    # Print cross-step comparison table
+    if checkpoint_results:
+        print(f"\n=== CROSS-STEP COMPARISON (step {args.checkpoint_at} vs {args.steps}) ===")
+        ckpt_means = compute_model_means(checkpoint_results)
+        header = f"{'Model':<12} {'Metric':<25} {'ckpt':>7} {'final':>7} {'delta':>7}"
+        print(header)
+        print("-" * len(header))
+        for m in args.models:
+            for metric in ["old_fact_token_acc", "old_fact_span_exact_acc",
+                           "pattern_token_acc", "salient_event_acc", "composite_score"]:
+                ck = ckpt_means.get(m, {}).get(metric, 0)
+                fn = final_means.get(m, {}).get(metric, 0)
+                delta = fn - ck
+                print(f"{m:<12} {metric:<25} {ck:>7.4f} {fn:>7.4f} {delta:>+7.4f}")
+
+    # Print final table
+    print(f"\n=== V3 COMPARISON TABLE (mean across seeds, step={args.steps}) ===")
     header = f"{'Model':<12} {'Recent':>7} {'OldTok':>7} {'OldSpan':>8} {'OldPart':>8} {'Pattern':>8} {'Salient':>8} {'Comp':>7}"
     print(header)
     print("-" * len(header))

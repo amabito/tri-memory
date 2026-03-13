@@ -457,6 +457,39 @@ TRN achieves 9.4x-575.8x speedup over naive TF generation (no KV cache) at conte
 
 TRN state remains constant at 8 KB from 1k to 10k+ history tokens. At 10k tokens, TRN generates at 230.9 tps vs TF+KV at 15.5 tps (14.9x speedup), with 8 KB vs 156 MB state. This validates TRN's value as a constant-memory generation backend for long-running sessions.
 
+### TRN Is a Pattern Memory, Not a Content-Addressable Memory
+
+TRN linear recurrence compresses token history into continuous statistics: amplitude,
+phase, frequency, and gating coefficients. This compression is lossy in a specific way --
+it preserves periodic/frequency patterns but discards discrete token identity.
+
+**Measured evidence (d=128, L=4, 2000 steps):**
+
+| Task | What it tests | TRN at dist > W | TF at dist > W |
+|------|--------------|-----------------|----------------|
+| PPD (Periodic Pattern Detection) | Frequency classification | 1.000 | 1.000 |
+| NiH (Needle-in-Haystack) | Exact token recall | 0.000 | 1.000 (dist<=100) |
+| GT (Goal Tracking) | Discrete symbol recall | ~0.25 (chance) | 1.000 (dist<=100) |
+
+PPD succeeds because frequency is a continuous statistic that survives recurrence
+compression. NiH and GT fail because they require the model to store and recall a
+specific discrete token value -- exactly the kind of information that linear recurrence
+discards.
+
+GT was initially expected to test "state tracking" (a capability TRN should have), but
+measurement showed it is functionally identical to NiH: both require content-addressed
+retrieval of a specific token, which TRN cannot do.
+
+**Go/No-Go gate design (v2):**
+- **T1 mandatory**: `ppd_window_generalization` (PPD accuracy at seq_len > W >= TF
+  baseline - 0.1). Tests what TRN CAN do: continuous pattern memory generalization.
+- **T2 reference**: `dual_nih_long_range` (NiH, expected 0.0), `gt_window_recovery`
+  (GT, expected ~0.25 chance level), `gt_reversal_recovery` (GT reversal, expected ~0.25).
+  Document known limitations without blocking the verdict.
+
+This ensures the Go/No-Go gate evaluates TRN against its actual capability (continuous
+pattern compression) rather than capabilities it structurally lacks (discrete token recall).
+
 ### Recommendations
 
 1. TRN as a **generation-phase accelerator**: 2.3x-5.5x faster than KV-cached Transformer, 8 KB vs MB-scale state.

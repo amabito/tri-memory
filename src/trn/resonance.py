@@ -128,6 +128,11 @@ class TemporalResonanceLayer(nn.Module):
         sin_a = sin_angle.to(x.dtype)
         rho   = r_r * cos_a + r_i * sin_a   # (B, n, K)
 
+        # Debug: store rho for NaN tracing (detached, no graph impact)
+        if getattr(self, "_debug_trace", False):
+            self._debug_last_rho = rho.detach()
+            self._debug_last_W_res_out = self.W_res(rho).detach()
+
         # P0-A: apply learnable res_scale before projection
         return self.res_scale * self.W_res(rho)  # (B, n, d_model)
 

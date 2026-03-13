@@ -1,11 +1,11 @@
-# Temporal Resonance Network (TRN)
+# TriMemory
 
-[![tests](https://img.shields.io/badge/tests-252%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-277%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![pytorch](https://img.shields.io/badge/pytorch-2.1%2B-orange)]()
 [![license](https://img.shields.io/badge/license-Apache%202.0-lightgrey)](LICENSE)
 
-A sequence model that replaces self-attention with damped oscillator dynamics in complex exponential space. Processes sequences in O(n) time and generates with constant-size state memory (no KV cache).
+Role-specialized memory architecture for language models. Three memory paths -- KV window, retrieval index, TRN state -- each handling a different kind of remembering.
 
 ```
 pip install -e .
@@ -15,167 +15,211 @@ pip install -e .
 
 ```python
 import torch
-from trn import TRNConfig, TRNModel
+from trn import TRNConfig
+from trn.tri_memory import TriMemoryEngine
 
 cfg = TRNConfig(
-    vocab_size=8192,
-    d_model=128,
-    n_oscillators=64,
-    n_layers=4,
-    d_ff=512,
-    max_seq_len=1024,
+    vocab_size=8192, d_model=128, n_oscillators=64,
+    n_layers=4, d_ff=512, max_seq_len=1024,
 )
-model = TRNModel(cfg)
+model = TriMemoryEngine(
+    cfg, window_size=64, chunk_size=32, max_retrieval_chunks=256,
+    enable_trn=True, enable_retrieval=True,
+)
 
-# Forward pass
-input_ids = torch.randint(0, cfg.vocab_size, (2, 256))
-out = model(input_ids, labels=input_ids)
+ids = torch.randint(0, cfg.vocab_size, (1, 512))
+out = model(ids, labels=ids)
 print(f"loss: {out['loss']:.4f}")
-
-# Generation (constant memory, no KV cache)
-prompt = torch.randint(0, cfg.vocab_size, (1, 16))
-tokens = model.generate(prompt, max_new_tokens=128)
 ```
 
-## Key Properties
+### Standalone TRN
 
-- **O(n) sequence processing** -- recurrence over damped complex oscillators, not quadratic attention
-- **Constant-size generation state** -- two vectors per layer (real + imaginary), no KV cache, does not grow with context
-- **Generation speedup at long contexts** -- throughput stays flat as context grows (TF degrades linearly)
-- **Stabilized training (P0 patch)** -- gradient norms reduced from millions to <30 via resonance scaling, state normalization, amplitude clamping
+```python
+from trn import TRNConfig, TRNModel
+
+cfg = TRNConfig.trn_100m()
+model = TRNModel(cfg)
+
+prompt = torch.randint(0, cfg.vocab_size, (1, 16))
+tokens = model.generate(prompt, max_new_tokens=128)
+# O(1) memory per step. No KV cache.
+```
+
+### Streaming Evaluation
+
+```bash
+python scripts/run_trimemory_streaming_eval.py \
+    --model trimemory --device cuda --seeds 0,1,2 \
+    --search-mode hidden --num-episodes 128
+```
+
+## Architecture
+
+```
+Input
+ |-- KV window (last W tokens, exact attention)
+ |-- Retrieval index (archived chunks, cosine search)
+ |-- TRN state (compressed patterns, constant size)
+ |
+ v
+Mixer gate: g = sigmoid(W_g * x)
+  out = g * attn + (1-g) * trn + retrieval_context
+ |
+ v
+FFN -> logits
+```
+
+KV handles recent context. Retrieval handles old facts that got evicted. TRN handles compressed patterns and periodicity. Each path gets what it is good at.
+
+### Memory Paths
+
+| Path | What it stores | Size | Access |
+|------|---------------|------|--------|
+| KV window | Recent W tokens | O(W) per layer | Exact attention |
+| Retrieval | Archived chunks with hidden states | Fixed capacity (default 256 chunks) | Cosine similarity search |
+| TRN state | Compressed history (amplitude, phase, frequency) | O(K) per layer, constant | Linear recurrence |
+
+### Retrieval Search Modes
+
+Three modes for chunk retrieval. `hidden` is default.
+
+| Mode | Method | Measured gold containment |
+|------|--------|--------------------------|
+| `bag` | Bag-of-token cosine | 0.323 |
+| `hidden` | Hidden-state cosine | 0.415 |
+| `hybrid` | Weighted combination | 0.404 |
+
+Hidden-state search improved gold containment by 29% over bag-of-token. The bottleneck shifted from "finding the right chunk" to "using it correctly in decoding".
+
+### Token Lifecycle
+
+Tokens enter KV window. Every C tokens, the oldest chunk gets evicted. TRN state always updates. If the chunk scores high on saliency, it goes to the retrieval index. When the model needs old information, the router gates retrieval context into the main path.
+
+## Features
+
+- Three-path memory: KV window + retrieval index + TRN state
+- Hidden-state, bag-of-token, and hybrid retrieval search
+- Gated mixer for path combination
+- Saliency-based chunk archival
+- Constant-size TRN state (8--96 KB depending on config)
+- Streaming inference with O(1) memory per step
+- Multi-agent support (16 KB per agent for trn_100m)
+- Score breakdown logging for failure analysis
 
 ## Benchmark Results
 
-### Generation Speed (CPU, d_model=128, n_layers=4, batch=2)
+### Generation Throughput (CPU, d=256, L=8, K=128)
 
-| gen_len | TRN (tok/s) | TF (tok/s) | Speedup |
-|---------|-------------|------------|---------|
-| 128     | 2,193       | 1,702      | 1.3x    |
-| 256     | 2,258       | 1,289      | 1.8x    |
-| 512     | 2,124       | 870        | 2.4x    |
-| 1,024   | 2,196       | 511        | 4.3x    |
+| History | TRN (tps) | TF+KV (tps) | TRN State | KV Cache (fp32) |
+|---------|-----------|-------------|-----------|-----------------|
+| 1,000 | 240 | 73.8 | 8 KB | 15.6 MB |
+| 5,000 | 244 | 35.9 | 8 KB | 78.1 MB |
+| 10,000 | 231 | 15.5 | 8 KB | 156.3 MB |
 
-TRN throughput stays flat across all context lengths. Transformer throughput halves each time context doubles.
+TRN throughput stays flat. Transformer+KV degrades as O(1/T).
 
-### Generation Memory
+### Multi-Agent Scaling (trn_100m, T=1000)
 
-| gen_len | TRN state | TF KV cache |
-|---------|-----------|-------------|
-| 128     | 0.001 MB  | 0.27 MB     |
-| 512     | 0.001 MB  | 1.02 MB     |
-| 1,024   | 0.001 MB  | 2.02 MB     |
+| Agents | TRN Total | KV Total | Ratio |
+|--------|-----------|----------|-------|
+| 10 | 0.16 MB | 312 MB | 2,000x |
+| 100 | 1.56 MB | 3,125 MB | 2,000x |
+| 1,000 | 15.6 MB | 31,250 MB | 2,000x |
 
-TRN state is constant at 0.001 MB regardless of context length.
+Config-specific. bf16 KV halves it. See [docs/PUBLIC_CLAIMS.md](docs/PUBLIC_CLAIMS.md).
 
-### Training Sanity Tests
+### Quality (Toy Config)
 
-| Test | Result | Detail |
-|------|--------|--------|
-| Random-target recheck | PASS | Both TRN and TF converge to unigram entropy H(p) on shuffled targets. No information leakage. |
-| BPE token-level (NLTK Gutenberg, vocab=8192, 2000 steps) | PASS | TRN val_ppl=904, TF val_ppl=2627. TRN learns normally on token-level data. |
-| Label shift audit | PASS | Single causal shift verified for both models. |
-| Gradient stability (P0) | PASS | Median grad norm < 30 over 50 steps. No NaN or Inf. |
+| Task | TRN | Transformer |
+|------|-----|-------------|
+| Periodic Pattern Detection | 0.78--1.00 | 1.00 |
+| Copy task | 1.00 | 1.00 |
+| Selective copy | 0.088 | 0.962 |
+| Needle-in-Haystack | 0.00 | -- |
 
-These results are from small models (~1-2M parameters) on CPU. They validate correctness and training dynamics, not large-scale language modeling quality.
+TRN cannot do content-addressed retrieval. 8.8% selective copy vs 96.2% for Transformer. That is why TriMemory pairs it with an explicit retrieval path.
 
-## Current Limitations
+### TriMemory Streaming Eval (Search Mode Comparison)
 
-- **Long-context retrieval.** Performance on needle-in-a-haystack and associative recall tasks has not been validated at scale. Short smoke runs (100-500 steps, CPU) show 0% recall for both TRN and Transformer, which is expected -- meaningful evaluation requires longer training on GPU.
-- **Large-scale language modeling.** All experiments use models with 1-2M parameters. Scaling behavior at 100M+ parameters is not yet characterized.
-- **GPU training throughput.** The resonance scan currently runs sequentially on GPU (PyTorch `torch.associative_scan` requires `torch.compile` which is not yet stable for this workload). On CPU, TRN forward pass is ~2.7x slower than Transformer. Parallel scan is expected to substantially narrow this gap.
-- **Overfit capacity.** TRN requires more training steps than Transformer to overfit a tiny dataset under default hyperparameters. This is a known characteristic of the oscillatory inductive bias, not an implementation bug.
+| Mode | old_fact_acc | retrieval_hit | gold_in_topk | Type A failure |
+|------|-------------|---------------|--------------|----------------|
+| bag | 0.125 | 0.256 | 0.323 | 67.9% |
+| hidden | 0.135 | 0.320 | 0.415 | 58.5% |
+| hybrid | 0.130 | 0.309 | 0.404 | 59.3% |
+
+32 episodes x 3 seeds, 300 steps, bf16, CUDA. Hidden search finds better chunks, but decode success is still 0.000 -- the current bottleneck is the decoder/mixer integration, not search.
+
+## Current Status
+
+Retrieval path: validated. Gold chunk selection works. Hidden-state search outperforms bag-of-token.
+
+Copy-mix (additive `main_logits + alpha * copy_logits`): confirmed effective for old fact recovery at the token level.
+
+Full model (KV + Retrieval + TRN): `D > max(A,B,C)` observed in composite score under specific settings.
+
+TRN standalone: pattern learning grows at 3000 steps. Seed dependence remains.
+
+Decoder/mixer integration: current bottleneck. Even when the correct chunk is retrieved and the gate uses it, the model often fails to produce the correct token. This is the next target.
+
+See [ROADMAP.md](ROADMAP.md) for details.
+
+## Known Limitations
+
+- TRN cannot perform content-addressed retrieval. Structural property of linear recurrence.
+- Decoder/mixer does not yet reliably convert retrieved chunks into correct tokens (decode success = 0.000 in streaming eval).
+- All experiments use 1--100M parameter models. Scaling behavior at 1B+ is unknown.
+- TRN seed dependence is still high for pattern tasks.
+
+See [docs/TRN_LIMITATIONS.md](docs/TRN_LIMITATIONS.md).
 
 ## Repository Structure
 
 ```
 src/trn/
-    config.py        Configuration dataclass (TRNConfig)
-    model.py         TRNModel: embedding -> N x TRNBlock -> RMSNorm -> lm_head
-    block.py         TRNBlock: norm -> resonance -> norm -> FFN (SwiGLU)
-    resonance.py     TemporalResonanceLayer: oscillator projection + complex recurrence
-    oscillator.py    OscillatorProjection: input -> (A, omega, phi, alpha) parameters
-    scan.py          Sequential and parallel (associative) scan implementations
-    baseline.py      TransformerModel: standard causal Transformer for comparison
-    eval.py          Perplexity evaluation utilities
-    data.py          PackedDataset for binary token files
-    tokenizer.py     Character-level tokenizer
-    trainer.py       Training loop with cosine LR schedule
-    generate.py      Generation utilities with streaming support
-    benchmark.py     Benchmark data generators (copy, counting, reverse, induction, etc.)
+    tri_memory.py    TriMemoryEngine (KV + TRN + Retrieval)
+    retrieval.py     RetrievalIndex (bag/hidden/hybrid search)
+    model.py         TRNModel (standalone)
+    resonance.py     TemporalResonanceLayer (oscillator recurrence)
+    baseline.py      TransformerModel (A/B comparison)
+    saliency.py      SaliencyArchiver (chunk scoring)
+    router.py        Retrieval router / gate
+    config.py        TRNConfig (toy, trn_100m, trn_400m, trn_1b)
+    agent_memory.py  Streaming agent inference wrapper
+    integrations/    vLLM backend, llama.cpp, LangChain, AutoGen, CrewAI
 
 scripts/
-    bench_generate.py        Generation speed and memory benchmark
-    bench_train.py           Training benchmark on generalization tasks
-    bench_memory_tasks.py    Long-context retrieval tasks
-    bench_smoke.py           CI smoke test
-    train_lm_realdata.py     Real-text LM training (WikiText-2 / Gutenberg)
-    train_lm_100m.py         100M-scale training script
-    profile_forward.py       Component-level forward pass profiling
-    train_gpu_scan.py        GPU parallel scan verification
-    audit_*.py               Dataset and training integrity audits
+    run_trimemory_streaming_eval.py    Streaming evaluation with telemetry
+    analyze_trimemory_oldfact_failures.py  Failure classification (Type A--E)
+    bench_phase7_gpu.py                GPU benchmark (TRN vs TF+KV)
+    eval_go_no_go.py                   Go/No-Go gate evaluation
 
-tests/
-    252 unit tests covering model correctness, training stability,
-    generation, checkpointing, determinism, and adversarial inputs.
-
-docs/
-    VALIDATION_RESULTS.md    Full benchmark tables and profiling breakdowns
+tests/     277 unit tests
+docs/      Architecture, limitations, integration guides
+artifacts/ Timestamped experiment runs
 ```
 
-## Running Benchmarks
-
-All commands run from the project root. Requires `pip install -e .` first.
+## Install
 
 ```bash
-# Generation benchmark (speed + memory)
-python scripts/bench_generate.py --gen-lens 128,256,512,1024
-
-# Training benchmark (generalization tasks, 5000 steps)
-python scripts/bench_train.py --tasks all --steps 5000
-
-# Real-text language modeling (char-level, WikiText-2 / Gutenberg)
-cd scripts
-python train_lm_realdata.py --model trn --size small --steps 2000
-python train_lm_realdata.py --model tf  --size small --steps 2000
-
-# BPE token-level training
-cd scripts
-python train_lm_realdata.py --model trn --size small --steps 2000 --tokenizer bpe
-python train_lm_realdata.py --model tf  --size small --steps 2000 --tokenizer bpe
-
-# Random-target sanity test
-cd scripts
-python train_lm_realdata.py --model trn --size small --steps 500 --random-targets
-python train_lm_realdata.py --model tf  --size small --steps 500 --random-targets
-
-# Forward pass profiling
-python scripts/profile_forward.py --d-model 128 --n-layers 4 --seq-len 64
-
-# CI smoke test (< 60s)
-python scripts/bench_smoke.py
-
-# Full test suite
-pytest tests/ -x -q
+git clone https://github.com/TODO/trn.git
+cd trn
+pip install -e ".[dev]"
+pytest
 ```
 
-Output CSVs are written to `scripts/results/`. See [BENCHMARK.md](BENCHMARK.md) for the full protocol and [docs/VALIDATION_RESULTS.md](docs/VALIDATION_RESULTS.md) for detailed results.
-
-## Development Status
-
-Research architecture, under active development. Validates the core mechanism at small scale (1-2M params). Large-scale LM quality, long-context retrieval, and GPU-optimized training are open. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
+Requires Python 3.10+, PyTorch 2.1+.
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE) for the full text.
+Apache License 2.0. See [LICENSE](LICENSE).
 
 ## Citation
 
 ```bibtex
-@software{trn2026,
-  title  = {Temporal Resonance Network},
-  author = {TRN Contributors},
+@software{trimemory2026,
+  title  = {TriMemory},
+  author = {TriMemory Contributors},
   year   = {2026},
   url    = {https://github.com/TODO/trn},
-  note   = {v0.1.0},
 }
 ```
