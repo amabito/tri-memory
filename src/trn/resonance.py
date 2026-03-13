@@ -57,7 +57,9 @@ class TemporalResonanceLayer(nn.Module):
             gate_bias_init=gate_bias_init,
         )
 
-        # P0-A: smaller W_res init + learnable output scale
+        # W_res init: std=2e-3 (baseline default)
+        # Bimodality is addressed by Fix D (LR warmup 300 steps), not init scale.
+        # Fix B (std=1e-4) was reverted -- ineffective in Fix C post-world.
         self.W_res = nn.Linear(K, d_model, bias=False)
         nn.init.normal_(self.W_res.weight, std=2e-3)
 

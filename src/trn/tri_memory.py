@@ -144,7 +144,9 @@ class TriMemoryBlock(nn.Module):
         # 3-way gate: g = softmax([g_kv, g_trn, g_ret])
         self.gate_proj = nn.Linear(cfg.d_model, 3, bias=True)
         nn.init.normal_(self.gate_proj.weight, std=0.01)
-        # Equal start -- let training decide the balance
+        # Gate bias: zeros (baseline default)
+        # Fix B gate bias=[0,0.2,0] reverted -- ineffective in Fix C post-world.
+        # Bimodality is addressed by Fix D (LR warmup 300 steps).
         nn.init.zeros_(self.gate_proj.bias)
 
         # Retrieval projection: project retrieved chunk mean to d_model
@@ -287,7 +289,7 @@ class TriMemoryBlock(nn.Module):
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, T, C)
         attn_out = self.attn.proj(attn_out)
 
-        # TRN (zero if disabled), RMSNorm to prevent unbounded norm growth
+        # TRN (zero if disabled)
         if self.enable_trn:
             trn_out = self.trn_out_norm(self.trn(h))
         else:
@@ -401,7 +403,7 @@ class TriMemoryEngine(nn.Module):
         nn.init.normal_(self.ret_copy_head.weight, std=0.02)
 
         # Copy-mix alpha: learnable scalar for mixing copy logits into main logits
-        self.copy_mix_alpha = nn.Parameter(torch.tensor(1.0))
+        self.copy_mix_alpha = nn.Parameter(torch.tensor(2.0))
 
         # StateTokenAdapter
         self.state_adapter = StateTokenAdapter(

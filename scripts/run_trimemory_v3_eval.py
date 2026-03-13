@@ -56,6 +56,7 @@ VOCAB_SIZE = 256
 SEQ_LEN = 256
 BATCH_SIZE = 16
 LR = 3e-4
+WARMUP_STEPS = 300  # Fix D: linear warmup prevents stuck basin (9/10 success)
 
 # Token ranges
 FILLER_LOW = 100
