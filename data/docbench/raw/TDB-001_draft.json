@@ -1,0 +1,93 @@
+{
+  "sample_id": "TDB-001",
+  "type": "superseded_condition",
+  "difficulty": "hard",
+  "documents": [
+    {
+      "doc_id": "doc_01",
+      "role": "current_main",
+      "title": "基礎設計仕様書 Rev.3 (2026-02-15)",
+      "content": "3. 杭基礎設計\n3.1 設計条件\n支持層: 砂礫層 (GL-15m)\n3.2 杭の支持力\n設計支持力: 450kN/本\n杭径: phi600mm\n杭長: 12.0m\n安全率: 1.3\n3.3 配置\n杭本数: 48本 (6x8 grid, ピッチ 2.5D)",
+      "metadata": {
+        "version": "3.0",
+        "date": "2026-02-15",
+        "status": "current"
+      }
+    },
+    {
+      "doc_id": "doc_02",
+      "role": "previous_version",
+      "title": "基礎設計仕様書 Rev.2 (2025-11-01)",
+      "content": "3. 杭基礎設計\n3.1 設計条件\n支持層: 砂礫層 (GL-15m)\n3.2 杭の支持力\n設計支持力: 380kN/本\n杭径: phi600mm\n杭長: 12.0m\n安全率: 1.5\n備考: 地盤調査報告書 GR-2025-018 に基づく。N値=35 (GL-15m) での極限支持力 570kN に安全率 1.5 を適用。載荷試験未実施のため、建築基礎構造設計指針 (AIJ 2020) の推定式による。\n3.3 配置\n杭本数: 48本 (6x8 grid, ピッチ 2.5D)\n3.4 施工管理基準\n支持層確認: N値30以上を3m以上連続で確認\n根入れ長: 1.0D以上\nセメントミルク注入量: 計画注入量の80%以上",
+      "metadata": {
+        "version": "2.0",
+        "date": "2025-11-01",
+        "status": "superseded"
+      }
+    },
+    {
+      "doc_id": "doc_03",
+      "role": "change_notice",
+      "title": "設計変更通知 DCN-2026-003 (2026-02-10)",
+      "content": "変更対象: 基礎設計仕様書 3.2 杭の支持力\n変更前: 380kN/本 (安全率 1.5)\n変更後: 450kN/本 (安全率 1.3)\n変更理由: 載荷試験 (LT-2026-001) の実測値 612kN が推定極限支持力 570kN を上回ったため、安全率を 1.5 から 1.3 に緩和。\n承認: 構造設計部長 2026-02-12\n備考: 杭径・杭長・配置は変更なし。",
+      "metadata": {
+        "version": "1.0",
+        "date": "2026-02-10",
+        "status": "current",
+        "references": ["doc_01", "doc_02"]
+      }
+    }
+  ],
+  "question": "現行の杭の設計支持力はいくつか。また Rev.2 からの変更理由を述べよ。",
+  "gold_answer_text": "現行の設計支持力は 450kN/本 (Rev.3)。Rev.2 では 380kN/本 (安全率 1.5) だったが、載荷試験 LT-2026-001 の実測値 612kN が推定極限支持力を上回ったため、安全率を 1.3 に緩和し 450kN に引き上げた (DCN-2026-003)。",
+  "gold_answer_structured": {
+    "primary_value": "450kN/本",
+    "source_version": "Rev.3 (doc_01)",
+    "qualifications": [
+      "安全率 1.3",
+      "載荷試験 LT-2026-001 に基づく緩和"
+    ],
+    "superseded_value": "380kN/本 (Rev.2)",
+    "inconsistency_flag": false,
+    "change_reason": "載荷試験実測値 612kN > 推定極限支持力 570kN のため安全率 1.5 -> 1.3 に緩和"
+  },
+  "gold_evidence": [
+    {
+      "doc_id": "doc_01",
+      "span_id": "section_3.2",
+      "role": "primary_source"
+    },
+    {
+      "doc_id": "doc_03",
+      "span_id": "変更理由",
+      "role": "change_justification"
+    }
+  ],
+  "distractors": [
+    {
+      "value": "380kN/本",
+      "source_doc_id": "doc_02",
+      "why_wrong": "Rev.2 の値。Rev.3 で 450kN に変更済み。",
+      "retrieval_attractiveness": "high"
+    }
+  ],
+  "expected_failure_modes": [
+    {
+      "mode": "STALE_FACT",
+      "description": "Rev.2 の 380kN をそのまま回答。doc_02 の方が計算根拠 (N値, 極限支持力, AIJ指針) を詳細に含むため、embedding類似度で doc_01 より高スコアになりやすい。",
+      "triggered_by": "retrieval_only"
+    },
+    {
+      "mode": "INCOMPLETE_JUSTIFICATION",
+      "description": "450kN は答えるが、変更理由を DCN-2026-003 から引けず「安全率の見直し」程度で終わる。載荷試験番号・実測値に言及できない。",
+      "triggered_by": "latest_only"
+    }
+  ],
+  "required_capabilities": [
+    "version_resolution",
+    "cross_document_evidence",
+    "change_reason_retrieval"
+  ],
+  "evaluator_notes": "doc_02 は doc_01 より約2倍の分量があり、施工管理基準 (3.4) も含む。keyword overlap で doc_02 が「杭の支持力」に対して高スコアになることが trap の核心。doc_01 の section 3.2 は値のみで計算根拠がないため、retrieval system は doc_02 を優先しやすい。",
+  "split": "dev"
+}

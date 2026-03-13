@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "sample_id", "type", "difficulty", "documents", "question",
+    "gold_answer_text", "gold_answer_structured", "gold_evidence",
+    "distractors", "expected_failure_modes", "required_capabilities",
+    "evaluator_notes", "split"
+  ],
+  "properties": {
+    "sample_id": {
+      "type": "string",
+      "pattern": "^TDB-[0-9]{3}$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "superseded_condition",
+        "overwritten_history",
+        "exception_in_notes",
+        "table_text_inconsistency",
+        "unresolved_minutes",
+        "faq_vs_formal_spec",
+        "interim_error",
+        "quantity_prose_conflict"
+      ]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard"]
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["doc_id", "role", "title", "content", "metadata"],
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "pattern": "^doc_[0-9]{2}$"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "current_main", "previous_version", "change_notice",
+              "supplementary", "minutes", "table_data", "faq",
+              "draft", "formal_spec"
+            ]
+          },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "version": { "type": "string" },
+              "date": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": ["current", "superseded", "draft", "provisional", "archived"]
+              },
+              "references": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "question": { "type": "string" },
+    "gold_answer_text": { "type": "string" },
+    "gold_answer_structured": {
+      "type": "object",
+      "required": ["primary_value", "source_version", "qualifications"],
+      "properties": {
+        "primary_value": { "type": "string" },
+        "source_version": { "type": "string" },
+        "qualifications": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "superseded_value": { "type": "string" },
+        "inconsistency_flag": { "type": "boolean" },
+        "change_reason": { "type": "string" }
+      }
+    },
+    "gold_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["doc_id", "span_id", "role"],
+        "properties": {
+          "doc_id": { "type": "string" },
+          "span_id": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": [
+              "primary_source", "change_justification", "exception_rule",
+              "contradiction_source", "status_indicator", "supporting_context"
+            ]
+          }
+        }
+      }
+    },
+    "distractors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["value", "source_doc_id", "why_wrong"],
+        "properties": {
+          "value": { "type": "string" },
+          "source_doc_id": { "type": "string" },
+          "why_wrong": { "type": "string" },
+          "retrieval_attractiveness": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          }
+        }
+      }
+    },
+    "expected_failure_modes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["mode", "description"],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "STALE_FACT", "LATEST_ONLY", "MISSING_EXCEPTION",
+              "INTERMEDIATE_VERSION_CONFUSION", "FORMAL_PROVISIONAL_CONFUSION",
+              "TABLE_TEXT_CONFLICT_MISSED", "INCOMPLETE_JUSTIFICATION",
+              "WRONG_SOURCE_PRIORITY", "UNSUPPORTED_DEFINITIVE_ANSWER"
+            ]
+          },
+          "description": { "type": "string" },
+          "triggered_by": {
+            "type": "string",
+            "enum": [
+              "retrieval_only", "latest_only", "no_cross_reference",
+              "status_ignorance", "shallow_reading"
+            ]
+          }
+        }
+      }
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "version_resolution", "cross_document_evidence",
+          "change_reason_retrieval", "exception_detection",
+          "multi_condition_integration", "inconsistency_detection",
+          "formal_provisional_distinction", "multi_version_tracking",
+          "change_chain_reconstruction", "document_status_awareness",
+          "source_priority_judgment", "quantitative_cross_check"
+        ]
+      }
+    },
+    "evaluator_notes": { "type": "string" },
+    "split": {
+      "type": "string",
+      "enum": ["dev", "test"]
+    }
+  }
+}
