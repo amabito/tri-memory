@@ -44,11 +44,11 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.scheduler import CosineWithWarmup
-from trn.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.scheduler import CosineWithWarmup
+from trimemory.bench_data import seed_everything
 
 
 # ---------------------------------------------------------------------------

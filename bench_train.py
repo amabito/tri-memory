@@ -36,18 +36,18 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import torch
 from torch.utils.data import DataLoader
 
-from trn.bench_data import (
+from trimemory.bench_data import (
     seed_everything,
     NextTokenCopyDataset,
     SelectiveCopyDataset,
     TinyCorpusDataset,
     TINY_CORPUS,
 )
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.scheduler import CosineWithWarmup
-from trn.tokenizer import CharTokenizer
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.scheduler import CosineWithWarmup
+from trimemory.tokenizer import CharTokenizer
 
 
 # ── Fixed hyperparameters ─────────────────────────────────────────────────────

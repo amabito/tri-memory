@@ -22,9 +22,9 @@ from collections import deque
 import pytest
 import torch
 
-from trn.config import TRNConfig
-from trn.retrieval import ChunkRecord, RetrievalIndex
-from trn.tri_memory import TriMemoryBlock, TriMemoryEngine
+from trimemory.config import TRNConfig
+from trimemory.retrieval import ChunkRecord, RetrievalIndex
+from trimemory.tri_memory import TriMemoryBlock, TriMemoryEngine
 
 
 # ---------------------------------------------------------------------------
@@ -359,7 +359,7 @@ class TestDequeBoundary:
 
     def test_router_log_bounded_at_1024(self) -> None:
         """_router_log must stay bounded at its declared maxlen=1024."""
-        from trn.router import RouterDecision
+        from trimemory.router import RouterDecision
         cfg = TRNConfig.toy()
         engine = TriMemoryEngine(
             cfg, window_size=32, chunk_size=16,

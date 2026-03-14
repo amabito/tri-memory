@@ -4,9 +4,9 @@ from __future__ import annotations
 import torch
 import pytest
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.generate import (
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.generate import (
     GenerationConfig,
     _apply_top_p,
     _apply_repetition_penalty,

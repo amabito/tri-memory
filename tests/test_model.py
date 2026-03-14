@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import torch
 import pytest
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 
 @pytest.fixture

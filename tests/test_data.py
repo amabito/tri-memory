@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from trn.data import PackedDataset, build_dataloader
+from trimemory.data import PackedDataset, build_dataloader
 
 
 @pytest.fixture

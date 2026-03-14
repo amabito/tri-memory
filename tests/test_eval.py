@@ -6,10 +6,10 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from trn.config import TRNConfig
-from trn.data import PackedDataset
-from trn.eval import compute_perplexity, evaluate
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.data import PackedDataset
+from trimemory.eval import compute_perplexity, evaluate
+from trimemory.model import TRNModel
 
 
 def make_synthetic_bin(tmp_path, n_tokens: int = 500, name: str = "data.bin"):
@@ -127,7 +127,7 @@ import math  # noqa: E402 — needed for test_perplexity_finite
 
 # --- Tests for evaluate_perplexity (DataLoader-based API) ---
 
-from trn.eval import evaluate_perplexity
+from trimemory.eval import evaluate_perplexity
 from torch.utils.data import TensorDataset
 
 

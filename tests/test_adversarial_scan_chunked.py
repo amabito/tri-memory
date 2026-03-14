@@ -15,7 +15,7 @@ import math
 import pytest
 import torch
 
-from trn.scan import chunked_resonance_scan, sequential_resonance_scan
+from trimemory.scan import chunked_resonance_scan, sequential_resonance_scan
 
 
 # ---------------------------------------------------------------------------

@@ -60,11 +60,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from trn.baseline import TransformerModel
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.hybrid_model import HybridModel
-from trn.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.hybrid_model import HybridModel
+from trimemory.model import TRNModel
 
 # ---------------------------------------------------------------------------
 # Defaults

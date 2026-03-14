@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import pytest
 import torch
-from trn.scan import _combine, sequential_resonance_scan
+from trimemory.scan import _combine, sequential_resonance_scan
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ def test_sequential_scan_finite():
 # ---------------------------------------------------------------------------
 
 def test_parallel_fallback(monkeypatch):
-    import trn.scan as scan_module
+    import trimemory.scan as scan_module
 
     # Remove associative_scan from the torch mock so parallel path falls back
     class _FakeTorch:
@@ -125,7 +125,7 @@ def test_parallel_fallback(monkeypatch):
     drive_r = torch.randn(B, n, K)
     drive_i = torch.randn(B, n, K)
 
-    from trn.scan import parallel_resonance_scan
+    from trimemory.scan import parallel_resonance_scan
     parallel_resonance_scan(alpha, drive_r, drive_i)
 
     assert len(called) > 0, "chunked_resonance_scan was not called as fallback"

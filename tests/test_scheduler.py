@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.optim as optim
 
-from trn.scheduler import get_lr, CosineWithWarmup
+from trimemory.scheduler import get_lr, CosineWithWarmup
 
 
 # --- get_lr tests ---

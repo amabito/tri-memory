@@ -20,11 +20,11 @@ import torch
 # Allow running from project root without install
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from trn.config import TRNConfig
-from trn.data import PackedDataset
-from trn.eval import compute_perplexity
-from trn.model import TRNModel
-from trn.trainer import TrainConfig, Trainer
+from trimemory.config import TRNConfig
+from trimemory.data import PackedDataset
+from trimemory.eval import compute_perplexity
+from trimemory.model import TRNModel
+from trimemory.trainer import TrainConfig, Trainer
 
 
 def _make_synthetic_dataset(

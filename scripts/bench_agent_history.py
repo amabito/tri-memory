@@ -32,10 +32,10 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from trn.baseline import CausalSelfAttention, TransformerModel
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.baseline import CausalSelfAttention, TransformerModel
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 # Default benchmark configuration
 DEFAULT_CHECKPOINTS = [1000, 2000, 5000, 10000, 20000, 50000, 100000]

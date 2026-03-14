@@ -6,10 +6,10 @@ import tracemalloc
 import pytest
 import torch
 
-from trn.config import TRNConfig
-from trn.generate import generate, GenerationConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
+from trimemory.config import TRNConfig
+from trimemory.generate import generate, GenerationConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
 
 
 def _cfg(max_seq: int = 8192) -> TRNConfig:

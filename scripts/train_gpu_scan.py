@@ -29,9 +29,9 @@ from typing import Optional
 
 import torch
 
-from trn.scan import sequential_resonance_scan
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.scan import sequential_resonance_scan
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 
 # ---------------------------------------------------------------------------
@@ -331,7 +331,7 @@ def main() -> None:
     if device == "cuda":
         if assoc_fn is not None:
             # Full test: GPU parallel vs CPU sequential
-            from trn.scan import sequential_resonance_scan as seq_scan
+            from trimemory.scan import sequential_resonance_scan as seq_scan
             B, n, K = 4, 512, 64
             alpha   = torch.sigmoid(torch.randn(B, n, K)).float()
             dr      = torch.randn(B, n, K).float()

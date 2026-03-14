@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from trn.tokenizer import CharTokenizer
+from trimemory.tokenizer import CharTokenizer
 
 
 # ---------------------------------------------------------------------------

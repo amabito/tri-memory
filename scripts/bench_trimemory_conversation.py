@@ -32,10 +32,10 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.integrations.vllm_backend import DualMemoryEngine
-from trn.tri_memory import TriMemoryEngine
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.integrations.vllm_backend import DualMemoryEngine
+from trimemory.tri_memory import TriMemoryEngine
 
 WINDOW_SIZE = 64
 CHUNK_SIZE = 32

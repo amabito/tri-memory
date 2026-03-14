@@ -25,9 +25,9 @@ import torch.nn.functional as F
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.scheduler import CosineWithWarmup
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.scheduler import CosineWithWarmup
 
 
 IMPROVEMENT_THRESHOLD = 0.10  # 10%

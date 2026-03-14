@@ -5,13 +5,13 @@ import threading
 import pytest
 import torch
 import torch.nn as nn
-from trn.config import TRNConfig
-from trn.scan import _combine, sequential_resonance_scan
-from trn.oscillator import OscillatorProjection
-from trn.resonance import TemporalResonanceLayer
-from trn.block import TRNBlock, SwiGLU
-from trn.model import TRNModel
-from trn.utils import build_rms_norm
+from trimemory.config import TRNConfig
+from trimemory.scan import _combine, sequential_resonance_scan
+from trimemory.oscillator import OscillatorProjection
+from trimemory.resonance import TemporalResonanceLayer
+from trimemory.block import TRNBlock, SwiGLU
+from trimemory.model import TRNModel
+from trimemory.utils import build_rms_norm
 
 
 @pytest.fixture
@@ -283,7 +283,7 @@ def test_step_single_state_not_mutated_inplace(
 
 def test_inf_input_to_oscillator(toy_cfg: TRNConfig) -> None:
     """Very large input (1e38) -> softplus clamp keeps A <= 10, all outputs finite."""
-    from trn.oscillator import OscillatorProjection
+    from trimemory.oscillator import OscillatorProjection
     torch.manual_seed(20)
     proj = OscillatorProjection(toy_cfg.d_model, toy_cfg.n_oscillators).eval()
     B, n = 2, 3
@@ -323,10 +323,10 @@ def test_negative_token_ids(toy_model: TRNModel) -> None:
 def test_fp32_state_in_bf16_forward(toy_cfg: TRNConfig) -> None:
     """alpha passed to the scan must be float32 even in a bf16 forward pass.
 
-    Patches trn.resonance.chunked_resonance_scan (the CPU path used by forward).
+    Patches trimemory.resonance.chunked_resonance_scan (the CPU path used by forward).
     """
-    import trn.resonance as resonance_module
-    from trn.scan import chunked_resonance_scan as _orig_chunked
+    import trimemory.resonance as resonance_module
+    from trimemory.scan import chunked_resonance_scan as _orig_chunked
     torch.manual_seed(21)
     B, n = 1, 4
 

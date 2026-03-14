@@ -10,8 +10,8 @@ Usage::
 
     # In your LangGraph graph definition:
     #
-    #   from trn.integrations import TRNMemoryNode
-    #   from trn.config import TRNConfig
+    #   from trimemory.integrations import TRNMemoryNode
+    #   from trimemory.config import TRNConfig
     #   from langgraph.graph import StateGraph
     #
     #   cfg = TRNConfig.trn_100m()
@@ -38,8 +38,8 @@ from typing import Any, Optional
 
 import torch
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 
 class TRNMemoryNode:

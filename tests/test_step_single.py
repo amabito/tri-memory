@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 import torch
 
-from trn.config import TRNConfig
-from trn.resonance import TemporalResonanceLayer
+from trimemory.config import TRNConfig
+from trimemory.resonance import TemporalResonanceLayer
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import pytest
-from trn.config import TRNConfig
-from trn.block import TRNBlock, SwiGLU
+from trimemory.config import TRNConfig
+from trimemory.block import TRNBlock, SwiGLU
 
 
 @pytest.fixture

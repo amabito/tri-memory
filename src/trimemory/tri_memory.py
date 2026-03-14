@@ -41,13 +41,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from trn.baseline import CausalSelfAttention
-from trn.config import TRNConfig
-from trn.resonance import TemporalResonanceLayer
-from trn.retrieval import RetrievalIndex
-from trn.router import RuleBasedMemoryRouter, RouterDecision
-from trn.saliency import SaliencyArchiver
-from trn.utils import build_rms_norm, build_sinusoidal_pe
+from trimemory.baseline import CausalSelfAttention
+from trimemory.config import TRNConfig
+from trimemory.memory_mediator import MemoryMediator
+from trimemory.memory_packet import CompactMemoryPacket
+from trimemory.resonance import TemporalResonanceLayer
+from trimemory.retrieval import RetrievalIndex
+from trimemory.router import RuleBasedMemoryRouter, RouterDecision
+from trimemory.saliency import SaliencyArchiver
+from trimemory.selective_memory_messenger import SelectiveMemoryMessenger
+from trimemory.utils import build_rms_norm, build_sinusoidal_pe
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +369,12 @@ class TriMemoryEngine(nn.Module):
         search_mode: str = "hidden",
         search_w_hidden: float = 0.7,
         search_w_bag: float = 0.3,
+        # CompactMemoryPacket feature flags
+        use_compact_memory_packet: bool = False,
+        max_exact_fact_fields: int = 8,
+        max_state_hints: int = 4,
+        max_source_refs: int = 6,
+        prefer_current: bool = True,
     ) -> None:
         super().__init__()
         self.cfg = cfg
@@ -378,6 +387,16 @@ class TriMemoryEngine(nn.Module):
         self.search_mode = search_mode
         self.search_w_hidden = search_w_hidden
         self.search_w_bag = search_w_bag
+
+        # CompactMemoryPacket pipeline (P0 real-data PoC)
+        self.use_compact_memory_packet = use_compact_memory_packet
+        self.max_exact_fact_fields = max_exact_fact_fields
+        self.max_state_hints = max_state_hints
+        self.max_source_refs = max_source_refs
+        self.prefer_current = prefer_current
+        self._messenger = SelectiveMemoryMessenger()
+        self._mediator = MemoryMediator()
+        self._last_packet: CompactMemoryPacket | None = None
 
         self.embedding = nn.Embedding(cfg.vocab_size, cfg.d_model)
         self.drop_emb = (
@@ -472,9 +491,16 @@ class TriMemoryEngine(nn.Module):
         self,
         query_tokens: list[int],
         device: torch.device,
+        query_text: str = "",
     ) -> Optional[Tensor]:
-        """Query retrieval index and return mean hidden of top-k results."""
+        """Query retrieval index and return mean hidden of top-k results.
+
+        When use_compact_memory_packet is True, also builds a
+        CompactMemoryPacket from the retrieved chunks and stores it
+        in self._last_packet for downstream consumption.
+        """
         if len(self.retrieval_index) == 0:
+            self._last_packet = None
             return None
 
         # Compute query_hidden from embedding mean for hidden/hybrid modes
@@ -493,7 +519,41 @@ class TriMemoryEngine(nn.Module):
             w_bag=self.search_w_bag,
         )
         if not results:
+            self._last_packet = None
             return None
+
+        # CompactMemoryPacket pipeline (feature-flagged)
+        if self.use_compact_memory_packet:
+            retrieved_items = []
+            for chunk in results:
+                item: dict = {
+                    "text": "",  # token_ids only -- no raw text in training
+                    "doc_id": f"chunk_{chunk.chunk_id}",
+                    "span_id": f"step_{chunk.step}",
+                    "title": chunk.tool_name or f"chunk_{chunk.chunk_id}",
+                }
+                # If chunk has extended metadata (disentangled_archive), use it
+                if hasattr(chunk, "metadata") and chunk.metadata is not None:
+                    item["metadata"] = chunk.metadata
+                retrieved_items.append(item)
+
+            packet = self._messenger.build_packet(
+                retrieved_items,
+                query=query_text,
+                max_exact_fact_fields=self.max_exact_fact_fields,
+                max_state_hints=self.max_state_hints,
+                max_source_refs=self.max_source_refs,
+            )
+            packet = self._mediator.resolve(
+                packet,
+                prefer_current=self.prefer_current,
+                max_exact_facts=self.max_exact_fact_fields,
+                max_state_hints=self.max_state_hints,
+                max_source_refs=self.max_source_refs,
+            )
+            self._last_packet = packet
+        else:
+            self._last_packet = None
 
         # Mean pool retrieved chunk hidden means
         hiddens = torch.stack([r.hidden_mean for r in results])  # (k, d_model)
@@ -519,6 +579,7 @@ class TriMemoryEngine(nn.Module):
             copy_mix_positions: list of (seq_pos, chunk_token_idx) pairs for copy_mix mode.
                 At each seq_pos in the logits, add alpha * copy_logits[:, chunk_token_idx, :].
         """
+        self._last_packet = None  # forward() does not build packets
         B, T = input_ids.shape
         pe_len = min(T, self.pe.size(0))
         x = self.drop_emb(self.embedding(input_ids))
@@ -804,22 +865,31 @@ class TriMemoryEngine(nn.Module):
             "retained_kv_tokens": self.window_size,
         }
 
+    def get_last_packet(self) -> CompactMemoryPacket | None:
+        """Return the last CompactMemoryPacket built during retrieval.
+
+        Only populated when use_compact_memory_packet=True and retrieval
+        was triggered during the last forward/forward_with_memory call.
+        """
+        return self._last_packet
+
     def reset_memory(self) -> None:
         """Reset all non-parameter memory state."""
         self.retrieval_index.reset()
         self._eviction_buffer.clear()
         self._global_step = 0
         self._router_log.clear()
+        self._last_packet = None
 
     def configure_optimizer_param_groups(
         self,
         weight_decay: float = 0.1,
     ) -> list[dict]:
-        from trn.utils import configure_optimizer_param_groups
+        from trimemory.utils import configure_optimizer_param_groups
         return configure_optimizer_param_groups(self, weight_decay)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
-        from trn.utils import num_parameters
+        from trimemory.utils import num_parameters
         return num_parameters(self, non_embedding)
 
     @property

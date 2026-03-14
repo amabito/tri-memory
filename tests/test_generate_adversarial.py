@@ -8,9 +8,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.generate import (
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.generate import (
     generate,
     stream_generate,
     sample_token,

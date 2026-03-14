@@ -32,10 +32,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from trn.bench_data import seed_everything
-from trn.baseline import TransformerModel
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.bench_data import seed_everything
+from trimemory.baseline import TransformerModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 # ---------------------------------------------------------------------------
 # Constants

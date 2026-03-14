@@ -5,8 +5,8 @@ import math
 
 import pytest
 
-from trn.compare import ComparisonResult, print_comparison_report, run_comparison
-from trn.config import TRNConfig
+from trimemory.compare import ComparisonResult, print_comparison_report, run_comparison
+from trimemory.config import TRNConfig
 
 
 @pytest.fixture

@@ -41,7 +41,7 @@ from typing import Optional
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from trn.bench_data import (
+from trimemory.bench_data import (
     seed_everything,
     NextTokenCopyDataset,
     CountingDataset,
@@ -50,11 +50,11 @@ from trn.bench_data import (
     AssociativeRecallDataset,
     SelectiveCopyDataset,
 )
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.hybrid_model import HybridModel
-from trn.scheduler import CosineWithWarmup
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.hybrid_model import HybridModel
+from trimemory.scheduler import CosineWithWarmup
 
 
 # ── Fixed hyperparameters ─────────────────────────────────────────────────────

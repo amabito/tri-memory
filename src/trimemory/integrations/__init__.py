@@ -10,15 +10,15 @@ at import time. Install the target framework separately.
 
 Example (LangGraph)::
 
-    from trn.integrations import TRNMemoryNode
+    from trimemory.integrations import TRNMemoryNode
 
 Example (AutoGen)::
 
-    from trn.integrations import TRNConversableAgent
+    from trimemory.integrations import TRNConversableAgent
 
 Example (CrewAI)::
 
-    from trn.integrations import TRNLongTermMemory
+    from trimemory.integrations import TRNLongTermMemory
 """
 from __future__ import annotations
 

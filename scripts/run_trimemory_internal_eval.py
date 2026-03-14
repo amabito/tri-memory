@@ -35,8 +35,8 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from trn.config import TRNConfig
-from trn.tri_memory import TriMemoryEngine
+from trimemory.config import TRNConfig
+from trimemory.tri_memory import TriMemoryEngine
 
 # ---------------------------------------------------------------------------
 # Constants (match bench_trimemory_mixed.py)

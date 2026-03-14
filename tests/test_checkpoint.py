@@ -6,9 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.checkpoint import save_checkpoint, load_checkpoint
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.checkpoint import save_checkpoint, load_checkpoint
 
 
 # --- Fixtures ---

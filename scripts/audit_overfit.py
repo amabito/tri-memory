@@ -24,9 +24,9 @@ import torch
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
 
 sys.path.insert(0, str(Path(__file__).parent))
 from train_lm_realdata import load_or_build_cache

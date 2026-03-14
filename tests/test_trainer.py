@@ -6,10 +6,10 @@ import pytest
 import torch
 from pathlib import Path
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.data import PackedDataset
-from trn.trainer import Trainer, TrainConfig, SimpleTrainer
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.data import PackedDataset
+from trimemory.trainer import Trainer, TrainConfig, SimpleTrainer
 
 
 # --- Helpers ---

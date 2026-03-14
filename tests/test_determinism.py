@@ -4,10 +4,10 @@ from __future__ import annotations
 import pytest
 import torch
 
-from trn.bench_data import seed_everything, NextTokenCopyDataset
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
+from trimemory.bench_data import seed_everything, NextTokenCopyDataset
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
 from torch.utils.data import DataLoader
 
 

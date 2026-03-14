@@ -16,10 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import numpy as np
 import torch
 
-from trn.config import TRNConfig
-from trn.generate import GenerationConfig, generate
-from trn.model import TRNModel
-from trn.tokenizer import CharTokenizer
+from trimemory.config import TRNConfig
+from trimemory.generate import GenerationConfig, generate
+from trimemory.model import TRNModel
+from trimemory.tokenizer import CharTokenizer
 
 
 CORPUS = """\
@@ -114,7 +114,7 @@ def main() -> None:
     # Optional comparison
     if args.compare:
         print("\nRunning TRN vs Transformer comparison...")
-        from trn.compare import print_comparison_report, run_comparison
+        from trimemory.compare import print_comparison_report, run_comparison
 
         result = run_comparison(
             cfg, n_train_steps=30, n_bench_steps=10, device="cpu"

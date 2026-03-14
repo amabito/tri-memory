@@ -7,8 +7,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from trn.config import TRNConfig
-from trn.oscillator import OscillatorProjection
+from trimemory.config import TRNConfig
+from trimemory.oscillator import OscillatorProjection
 
 
 @pytest.fixture

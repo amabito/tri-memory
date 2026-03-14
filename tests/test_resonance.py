@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-from trn.config import TRNConfig
-from trn.resonance import TemporalResonanceLayer
-from trn.scan import sequential_resonance_scan
+from trimemory.config import TRNConfig
+from trimemory.resonance import TemporalResonanceLayer
+from trimemory.scan import sequential_resonance_scan
 
 
 @pytest.fixture
@@ -112,8 +112,8 @@ def test_resonance_state_fp32_internal(cfg: TRNConfig) -> None:
     The resonance.py forward always casts alpha to .float() before the scan,
     so this must hold regardless of the input dtype.
     """
-    import trn.resonance as resonance_mod
-    from trn.scan import chunked_resonance_scan as original_chunked
+    import trimemory.resonance as resonance_mod
+    from trimemory.scan import chunked_resonance_scan as original_chunked
 
     captured_dtypes: list[torch.dtype] = []
 

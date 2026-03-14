@@ -17,10 +17,10 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
 
 
 def wall_time_microbench(

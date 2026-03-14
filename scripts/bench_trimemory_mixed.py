@@ -39,9 +39,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.tri_memory import TriMemoryEngine
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.tri_memory import TriMemoryEngine
 
 # ---------------------------------------------------------------------------
 # Constants

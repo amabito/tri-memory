@@ -22,9 +22,9 @@ import pytest
 import torch
 import torch.nn as nn
 
-from trn.config import TRNConfig
-from trn.resonance import TemporalResonanceLayer
-from trn.scan import chunked_resonance_scan
+from trimemory.config import TRNConfig
+from trimemory.resonance import TemporalResonanceLayer
+from trimemory.scan import chunked_resonance_scan
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +366,7 @@ class TestTriMemoryEngineEmbeddingReuse:
 
     def test_forward_with_memory_output_finite(self, engine_cfg: TRNConfig) -> None:
         """forward_with_memory logits must be finite with zero initial states."""
-        from trn.tri_memory import TriMemoryEngine
+        from trimemory.tri_memory import TriMemoryEngine
 
         torch.manual_seed(30)
         engine = TriMemoryEngine(engine_cfg).eval()
@@ -390,7 +390,7 @@ class TestTriMemoryEngineEmbeddingReuse:
 
     def test_embedding_reuse_does_not_alter_output(self, engine_cfg: TRNConfig) -> None:
         """Two calls with same input+state must produce identical logits (no mutation side-effect)."""
-        from trn.tri_memory import TriMemoryEngine
+        from trimemory.tri_memory import TriMemoryEngine
 
         torch.manual_seed(31)
         engine = TriMemoryEngine(engine_cfg).eval()
@@ -410,7 +410,7 @@ class TestTriMemoryEngineEmbeddingReuse:
 
     def test_forward_with_memory_train_mode_applies_dropout(self, engine_cfg: TRNConfig) -> None:
         """With dropout > 0 in train mode, two calls must differ (dropout is active)."""
-        from trn.tri_memory import TriMemoryEngine
+        from trimemory.tri_memory import TriMemoryEngine
 
         cfg_drop = TRNConfig(
             vocab_size=engine_cfg.vocab_size,
@@ -445,7 +445,7 @@ class TestTriMemoryEngineEmbeddingReuse:
         self, engine_cfg: TRNConfig
     ) -> None:
         """Updated states returned must not alias the input state tensors."""
-        from trn.tri_memory import TriMemoryEngine
+        from trimemory.tri_memory import TriMemoryEngine
 
         torch.manual_seed(33)
         engine = TriMemoryEngine(engine_cfg).eval()
@@ -484,7 +484,7 @@ class TestNarrowExceptExposure:
           except (TypeError, RuntimeError, AttributeError)
         ValueError is NOT in this tuple, so it must propagate.
         """
-        import trn.scan as scan_module
+        import trimemory.scan as scan_module
 
         def _raise_value_error(*args, **kwargs):  # noqa: ANN001
             raise ValueError("injected ValueError -- must not be caught")
@@ -504,7 +504,7 @@ class TestNarrowExceptExposure:
 
     def test_os_error_propagates_through_parallel_scan(self) -> None:
         """OSError (also not caught) must propagate -- belt-and-suspenders check."""
-        import trn.scan as scan_module
+        import trimemory.scan as scan_module
 
         if not hasattr(torch, "associative_scan"):
             pytest.skip("torch.associative_scan not present")
@@ -524,7 +524,7 @@ class TestNarrowExceptExposure:
         Verifies that the narrowing did not accidentally remove the fallback for
         these two expected error types.
         """
-        import trn.scan as scan_module
+        import trimemory.scan as scan_module
 
         if not hasattr(torch, "associative_scan"):
             pytest.skip("torch.associative_scan not present")

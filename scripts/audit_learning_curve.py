@@ -25,9 +25,9 @@ import torch.nn as nn
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig  # noqa: E402
-from trn.model import TRNModel  # noqa: E402
-from trn.baseline import TransformerModel  # noqa: E402
+from trimemory.config import TRNConfig  # noqa: E402
+from trimemory.model import TRNModel  # noqa: E402
+from trimemory.baseline import TransformerModel  # noqa: E402
 from train_lm_realdata import load_or_build_cache, sample_batch  # noqa: E402
 
 # ---------------------------------------------------------------------------

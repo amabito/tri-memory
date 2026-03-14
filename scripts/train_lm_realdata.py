@@ -35,14 +35,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-# Add src/ to path so we can import trn without install
+# Add src/ to path so we can import trimemory without install
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.tokenizer import CharTokenizer
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.tokenizer import CharTokenizer
 
 
 # ---------------------------------------------------------------------------

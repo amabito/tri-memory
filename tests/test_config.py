@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trn.config import TRNConfig
+from trimemory.config import TRNConfig
 
 
 def test_d_ff_hidden_is_two_thirds_scaled():

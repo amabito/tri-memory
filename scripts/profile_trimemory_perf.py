@@ -43,10 +43,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.integrations.vllm_backend import DualMemoryEngine
-from trn.tri_memory import TriMemoryEngine
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.integrations.vllm_backend import DualMemoryEngine
+from trimemory.tri_memory import TriMemoryEngine
 
 # ---------------------------------------------------------------------------
 # Constants (match streaming eval exactly)
@@ -798,7 +798,7 @@ def python_overhead_check(
 
     # --- Measure saliency scoring ---
     print("  Saliency scoring comparison:")
-    from trn.tri_memory import SaliencyArchiver
+    from trimemory.tri_memory import SaliencyArchiver
     archiver = SaliencyArchiver(threshold=0.15, vocab_size=VOCAB_SIZE)
 
     for _ in range(500):

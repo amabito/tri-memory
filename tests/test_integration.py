@@ -19,12 +19,12 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from trn.checkpoint import load_checkpoint, save_checkpoint
-from trn.config import TRNConfig
-from trn.data import PackedDataset, build_dataloader
-from trn.eval import evaluate_perplexity
-from trn.model import TRNModel
-from trn.trainer import SimpleTrainer
+from trimemory.checkpoint import load_checkpoint, save_checkpoint
+from trimemory.config import TRNConfig
+from trimemory.data import PackedDataset, build_dataloader
+from trimemory.eval import evaluate_perplexity
+from trimemory.model import TRNModel
+from trimemory.trainer import SimpleTrainer
 
 
 # ---------------------------------------------------------------------------
@@ -174,9 +174,9 @@ def test_checkpoint_resume_consistency():
 def test_train_then_generate():
     """Train 20 steps then generate 5 tokens — verify shape and token validity."""
     try:
-        from trn.generate import GenerationConfig, generate
+        from trimemory.generate import GenerationConfig, generate
     except ImportError:
-        pytest.skip("trn.generate not available yet")
+        pytest.skip("trimemory.generate not available yet")
 
     cfg = _toy_cfg()
     trainer = SimpleTrainer(cfg, device="cpu", lr=3e-3, save_every=0, log_every=100)
@@ -258,9 +258,9 @@ def test_overfit_toy():
 def test_generate_after_train_consistent():
     """Same prompt + greedy decoding → identical output across two calls."""
     try:
-        from trn.generate import GenerationConfig, generate
+        from trimemory.generate import GenerationConfig, generate
     except ImportError:
-        pytest.skip("trn.generate not available yet")
+        pytest.skip("trimemory.generate not available yet")
 
     cfg = _toy_cfg()
     trainer = SimpleTrainer(cfg, device="cpu", lr=1e-3, save_every=0, log_every=100)

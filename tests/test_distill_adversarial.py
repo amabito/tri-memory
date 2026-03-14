@@ -21,8 +21,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 from distill_lm import distill_loss, seed_everything
 
 

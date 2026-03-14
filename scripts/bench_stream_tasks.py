@@ -40,12 +40,12 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
-from trn.baseline import TransformerModel
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.hybrid_model import HybridModel
-from trn.model import TRNModel
-from trn.scheduler import CosineWithWarmup
+from trimemory.baseline import TransformerModel
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.hybrid_model import HybridModel
+from trimemory.model import TRNModel
+from trimemory.scheduler import CosineWithWarmup
 
 # ---------------------------------------------------------------------------
 # Training constants (matching bench_sequence_tasks.py)

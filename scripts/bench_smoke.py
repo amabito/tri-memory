@@ -20,10 +20,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.bench_data import (
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.bench_data import (
     CountingDataset,
     ReverseDataset,
     InductionHeadDataset,

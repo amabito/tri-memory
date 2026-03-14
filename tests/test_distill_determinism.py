@@ -13,8 +13,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 
 def _seed_all(seed: int) -> None:

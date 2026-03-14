@@ -18,9 +18,9 @@ import torch.nn.functional as F
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig   # noqa: E402
-from trn.model import TRNModel     # noqa: E402
-from trn.baseline import TransformerModel  # noqa: E402
+from trimemory.config import TRNConfig   # noqa: E402
+from trimemory.model import TRNModel     # noqa: E402
+from trimemory.baseline import TransformerModel  # noqa: E402
 
 RESULTS = ROOT / "scripts" / "results" / "audit_label_shift.json"
 

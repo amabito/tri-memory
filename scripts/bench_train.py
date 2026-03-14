@@ -29,7 +29,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from trn.bench_data import (
+from trimemory.bench_data import (
     seed_everything,
     CountingDataset,
     ReverseDataset,
@@ -37,10 +37,10 @@ from trn.bench_data import (
     AssociativeRecallDataset,
     NextTokenCopyDataset,
 )
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.baseline import TransformerModel
-from trn.scheduler import CosineWithWarmup
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.baseline import TransformerModel
+from trimemory.scheduler import CosineWithWarmup
 
 
 # Fixed hyperparameters

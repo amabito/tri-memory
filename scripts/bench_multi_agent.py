@@ -26,9 +26,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import torch
 
-from trn.bench_data import seed_everything
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.bench_data import seed_everything
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 # GPU pricing (USD per hour)
 A100_PRICE_PER_HR = 2.50

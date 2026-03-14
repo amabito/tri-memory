@@ -11,8 +11,8 @@ Usage::
     # With AutoGen installed:
     #
     #   from autogen import ConversableAgent
-    #   from trn.integrations import TRNConversableAgent
-    #   from trn.config import TRNConfig
+    #   from trimemory.integrations import TRNConversableAgent
+    #   from trimemory.config import TRNConfig
     #
     #   class MyAgent(TRNConversableAgent, ConversableAgent):
     #       pass
@@ -43,8 +43,8 @@ from typing import Any, Optional
 
 import torch
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
 
 
 class TRNConversableAgent:

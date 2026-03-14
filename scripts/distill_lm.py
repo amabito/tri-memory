@@ -37,10 +37,10 @@ import torch.nn.functional as F
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from trn.config import TRNConfig
-from trn.model import TRNModel
-from trn.checkpoint import save_checkpoint
-from trn.scheduler import CosineWithWarmup
+from trimemory.config import TRNConfig
+from trimemory.model import TRNModel
+from trimemory.checkpoint import save_checkpoint
+from trimemory.scheduler import CosineWithWarmup
 
 CACHE_DIR = ROOT / "scripts" / "data"
 RESULTS_DIR = ROOT / "scripts" / "results"
