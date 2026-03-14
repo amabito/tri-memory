@@ -5,11 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "trimemory"
 version = "0.1.0"
-description = "Tri-Memory -- knowledge-state compiler with O(n) processing and constant-size generation state"
+description = "Knowledge-state compiler for LLM agents -- resolves document authority, currentness, and conflict before inference"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 readme = "README.md"
-keywords = ["sequence-model", "language-model", "rnn", "oscillator", "pytorch"]
+keywords = [
+    "rag", "retrieval-augmented-generation", "llm-agent", "agent-memory",
+    "long-context", "document-authority", "knowledge-state", "kv-cache",
+    "memory-efficient", "retrieval", "pytorch",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

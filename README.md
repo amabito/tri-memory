@@ -1,41 +1,96 @@
-# TriMemory
+# TriMemory -- Memory Architecture for LLM Agents
 
 [![tests](https://img.shields.io/badge/tests-277%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![pytorch](https://img.shields.io/badge/pytorch-2.1%2B-orange)]()
 [![license](https://img.shields.io/badge/license-Apache%202.0-lightgrey)](LICENSE)
 
-Role-specialized memory architecture for language models. Three memory paths -- KV window, retrieval index, TRN state -- each handling a different kind of remembering.
+Three-path memory layer for LLM agents. KV window for recent tokens,
+retrieval index for archived chunks, TRN recurrent state for compressed
+long-range patterns. 8 KB of state per agent. Flat throughput at 10,000+
+token history where a KV cache is 156 MB and 15x slower.
 
-```
-pip install -e .
+- **KV window** -- recent tokens, exact attention
+- **Retrieval index** -- archived chunks, cosine search over hidden states
+- **TRN state** -- compressed patterns and periodicity, constant size (8--96 KB)
+
+A learned 3-way softmax gate mixes all three paths per token.
+
+### TRN vs Transformer+KV (CPU, d=256, L=8, K=128)
+
+| History | TRN (tps) | TF+KV (tps) | TRN State | KV Cache (fp32) |
+|---------|-----------|-------------|-----------|-----------------|
+| 1,000 | 240 | 73.8 | 8 KB | 15.6 MB |
+| 5,000 | 244 | 35.9 | 8 KB | 78.1 MB |
+| 10,000 | 231 | 15.5 | 8 KB | 156.3 MB |
+
+TRN state is O(K), not O(T). Throughput stays flat while Transformer+KV degrades as history grows.
+
+---
+
+## Quick Demo
+
+```bash
+git clone https://github.com/amabito/tri-memory.git
+cd tri-memory
+pip install -e ".[dev]"
+pytest  # 277 tests
 ```
 
-## Quickstart
+### TriMemoryEngine -- training loop
 
 ```python
 import torch
-from trn import TRNConfig
-from trn.tri_memory import TriMemoryEngine
+from trimemory import TRNConfig
+from trimemory.tri_memory import TriMemoryEngine
 
 cfg = TRNConfig(
     vocab_size=8192, d_model=128, n_oscillators=64,
     n_layers=4, d_ff=512, max_seq_len=1024,
 )
 model = TriMemoryEngine(
-    cfg, window_size=64, chunk_size=32, max_retrieval_chunks=256,
-    enable_trn=True, enable_retrieval=True,
+    cfg,
+    window_size=64,           # KV window: last 64 tokens
+    chunk_size=32,            # eviction granularity
+    max_retrieval_chunks=256, # retrieval index capacity
+    enable_trn=True,
+    enable_retrieval=True,
 )
 
 ids = torch.randint(0, cfg.vocab_size, (1, 512))
 out = model(ids, labels=ids)
 print(f"loss: {out['loss']:.4f}")
+
+mem = model.memory_summary()
+print(f"TRN state: {mem['trn_state_bytes']} bytes (constant)")
+print(f"KV window: {mem['kv_window_bytes']} bytes (bounded)")
+```
+
+### AgentMemory -- stateful per-token streaming
+
+```python
+from trimemory import TRNConfig
+from trimemory.agent_memory import AgentMemory
+
+mem = AgentMemory(TRNConfig.toy(), device="cpu")
+
+# Feed tokens. State is O(K) -- no KV cache.
+mem.add_tokens([1, 2, 3, 4, 5])
+
+state = mem.get_state()
+print(f"TRN state: {mem.state_size_bytes()} bytes, "
+      f"position: {state['position']}")
+
+# Save and restore across agent turns.
+mem.save("turn1.pt")
+mem.load("turn1.pt")
 ```
 
 ### Standalone TRN
 
 ```python
-from trn import TRNConfig, TRNModel
+from trimemory import TRNConfig, TRNModel
+import torch
 
 cfg = TRNConfig.trn_100m()
 model = TRNModel(cfg)
@@ -45,13 +100,22 @@ tokens = model.generate(prompt, max_new_tokens=128)
 # O(1) memory per step. No KV cache.
 ```
 
-### Streaming Evaluation
+---
 
-```bash
-python scripts/run_trimemory_streaming_eval.py \
-    --model trimemory --device cuda --seeds 0,1,2 \
-    --search-mode hidden --num-episodes 128
-```
+## How it differs from RAG
+
+| | Standard RAG | TriMemory |
+|--|--|--|
+| Retrieval basis | Semantic similarity | Authority chain + semantic similarity |
+| Handles amendment override | No (both chunks retrieved equally) | Yes (structured authority resolution) |
+| Memory per agent at 10k context | O(context) -- 156 MB KV cache (fp32) | O(1) -- 8 KB TRN state |
+| Throughput at 10k context | 15.5 tps (TF+KV, CPU) | 231 tps (TRN, CPU) |
+| Content-addressed retrieval | Yes | No -- TRN recall is 0.0 (honest limitation) |
+| Status | Production | Alpha (toy-scale models, N=10 benchmark) |
+
+Authority resolution requires `use_compact_memory_packet=True` and document metadata. Off by default.
+
+---
 
 ## Architecture
 
@@ -62,16 +126,12 @@ Input
  |-- TRN state (compressed patterns, constant size)
  |
  v
-Mixer gate: g = sigmoid(W_g * x)
-  out = g * attn + (1-g) * trn + retrieval_context
+3-way gate: [g_kv, g_trn, g_ret] = softmax(W_gate * x)
+  out = g_kv * kv_out + g_trn * trn_out + g_ret * ret_out
  |
  v
 FFN -> logits
 ```
-
-KV handles recent context. Retrieval handles old facts that got evicted. TRN handles compressed patterns and periodicity. Each path gets what it is good at.
-
-### Memory Paths
 
 | Path | What it stores | Size | Access |
 |------|---------------|------|--------|
@@ -79,106 +139,81 @@ KV handles recent context. Retrieval handles old facts that got evicted. TRN han
 | Retrieval | Archived chunks with hidden states | Fixed capacity (default 256 chunks) | Cosine similarity search |
 | TRN state | Compressed history (amplitude, phase, frequency) | O(K) per layer, constant | Linear recurrence |
 
-### Retrieval Search Modes
+Tokens enter KV window. Every C tokens, the oldest chunk gets evicted and scored
+for saliency. High-saliency chunks go to the retrieval index. TRN state always updates.
+The gate routes each path's output based on what the current token needs.
 
-Three modes for chunk retrieval. `hidden` is default.
-
-| Mode | Method | Measured gold containment |
-|------|--------|--------------------------|
-| `bag` | Bag-of-token cosine | 0.323 |
-| `hidden` | Hidden-state cosine | 0.415 |
-| `hybrid` | Weighted combination | 0.404 |
-
-Hidden-state search improved gold containment by 29% over bag-of-token. The bottleneck shifted from "finding the right chunk" to "using it correctly in decoding".
-
-### Token Lifecycle
-
-Tokens enter KV window. Every C tokens, the oldest chunk gets evicted. TRN state always updates. If the chunk scores high on saliency, it goes to the retrieval index. When the model needs old information, the router gates retrieval context into the main path.
-
-## Features
-
-- Three-path memory: KV window + retrieval index + TRN state
-- Hidden-state, bag-of-token, and hybrid retrieval search
-- Gated mixer for path combination
-- Saliency-based chunk archival
-- Constant-size TRN state (8--96 KB depending on config)
-- Streaming inference with O(1) memory per step
-- Multi-agent support (16 KB per agent for trn_100m)
-- Score breakdown logging for failure analysis
+---
 
 ## Benchmark Results
 
-### Generation Throughput (CPU, d=256, L=8, K=128)
+### V5 A/B/C/D (Seeds 1--10, 3000 steps)
 
-| History | TRN (tps) | TF+KV (tps) | TRN State | KV Cache (fp32) |
-|---------|-----------|-------------|-----------|-----------------|
-| 1,000 | 240 | 73.8 | 8 KB | 15.6 MB |
-| 5,000 | 244 | 35.9 | 8 KB | 78.1 MB |
-| 10,000 | 231 | 15.5 | 8 KB | 156.3 MB |
+| Config | Composite | Strength | Caveat |
+|--------|-----------|----------|--------|
+| A (KV only) | 0.263 | Baseline | No long-range memory |
+| B (KV+TRN) | 0.457 | Pattern detection 0.678 | 2/10 seeds stuck on pattern (D recovers) |
+| C (KV+Ret) | 0.369 | Old fact recall 0.433 | No pattern capability |
+| **D (Full)** | **0.676** | **Pattern 0.805, Old fact 0.719** | Toy scale only (d=128, L=4) |
 
-TRN throughput stays flat. Transformer+KV degrades as O(1/T).
+D >= max(A,B,C) in 10/10 seeds (mean delta +0.165). H1--H4 all PASS.
+See [docs/FINAL_VERDICT.md](docs/FINAL_VERDICT.md).
 
 ### Multi-Agent Scaling (trn_100m, T=1000)
 
-| Agents | TRN Total | KV Total | Ratio |
-|--------|-----------|----------|-------|
+| Agents | TRN Total | KV Total (fp32) | Ratio |
+|--------|-----------|------------------|-------|
 | 10 | 0.16 MB | 312 MB | 2,000x |
 | 100 | 1.56 MB | 3,125 MB | 2,000x |
 | 1,000 | 15.6 MB | 31,250 MB | 2,000x |
 
-Config-specific. bf16 KV halves it. See [docs/PUBLIC_CLAIMS.md](docs/PUBLIC_CLAIMS.md).
+Config-specific. bf16 KV halves the ratio. See [docs/PUBLIC_CLAIMS.md](docs/PUBLIC_CLAIMS.md).
 
-### Quality (Toy Config)
+---
 
-| Task | TRN | Transformer |
-|------|-----|-------------|
-| Periodic Pattern Detection | 0.78--1.00 | 1.00 |
-| Copy task | 1.00 | 1.00 |
-| Selective copy | 0.088 | 0.962 |
-| Needle-in-Haystack | 0.00 | -- |
+## PolicyBench (N=10)
 
-TRN cannot do content-addressed retrieval. 8.8% selective copy vs 96.2% for Transformer. That is why TriMemory pairs it with an explicit retrieval path.
+Document authority QA -- 10 samples, Japanese corporate IT security policy, 9 evaluation types:
+authority resolution, amendment override, scope-dependent values, transition states,
+and more. English language corpus evaluation is planned.
 
-### TriMemory Streaming Eval (Search Mode Comparison)
+```
+data/policybench/policy_v1.jsonl
+```
 
-| Mode | old_fact_acc | retrieval_hit | gold_in_topk | Type A failure |
-|------|-------------|---------------|--------------|----------------|
-| bag | 0.125 | 0.256 | 0.323 | 67.9% |
-| hidden | 0.135 | 0.320 | 0.415 | 58.5% |
-| hybrid | 0.130 | 0.309 | 0.404 | 59.3% |
+Each sample has multi-document context (base policy + amendments + circulars),
+a query, gold answer, authority chain, and failure class annotation.
 
-32 episodes x 3 seeds, 300 steps, bf16, CUDA. Hidden search finds better chunks, but decode success is still 0.000 -- the current bottleneck is the decoder/mixer integration, not search.
+---
 
-## Final Results (2026-03-13)
+## VERONICA Integration
 
-V5 A/B/C/D benchmark, seeds 1--10, 3000 steps, Fix C + Fix D.
+TriMemory handles memory architecture. Runtime containment (budget enforcement,
+circuit breaking, policy governance) is handled by
+[VERONICA-core](https://github.com/amabito/veronica-core).
+Together: governed knowledge execution for LLM agents.
 
-| Config | Composite (mean) | Pattern (mean) | Old Fact (mean) |
-|--------|-------------------|----------------|-----------------|
-| A (KV only) | 0.263 | 0.095 | 0.218 |
-| B (KV+TRN) | 0.457 | 0.678 | 0.258 |
-| C (KV+Ret) | 0.369 | 0.225 | 0.433 |
-| D (Full) | **0.676** | **0.805** | **0.719** |
-
-D >= max(A,B,C) in 10/10 seeds (mean delta +0.165). No collapses.
-
-**Hypotheses**: H1 (Retrieval) PASS, H2 (TRN) PASS, H3 (Integration) PASS, H4 (Stability) PASS.
-
-See [docs/FINAL_VERDICT.md](docs/FINAL_VERDICT.md) for per-seed results and methodology.
+---
 
 ## Known Limitations
 
-- TRN cannot perform content-addressed retrieval. Structural property of linear recurrence.
+- TRN cannot perform content-addressed retrieval. Selective copy accuracy is 8.8% vs Transformer 96.2%. Needle-in-Haystack recall is 0.0. Structural property of linear recurrence.
 - All experiments use toy-scale models (1--100M parameters). Scaling behavior at 1B+ is unknown.
-- B config (KV+TRN) still shows seed-dependent pattern failure (2/10 stuck), though D recovers.
-- Streaming eval decoder integration remains a separate engineering challenge.
+- B config (KV+TRN) shows seed-dependent pattern failure (2/10 stuck), though D recovers.
+- PolicyBench is N=10. Validation on larger corpora is future work.
+- CompactMemoryPacket (authority resolution, conflict detection) is off by default. Requires `use_compact_memory_packet=True` and document metadata with authority chains.
+- Retrieval index is not persistent across process restarts.
+- Gate telemetry is diagnostic only -- gate ratios vary by input distribution.
+- Alpha status. No production deployment.
 
-See [docs/TRN_LIMITATIONS.md](docs/TRN_LIMITATIONS.md).
+See [docs/TRN_LIMITATIONS.md](docs/TRN_LIMITATIONS.md) and [docs/PUBLIC_CLAIMS.md](docs/PUBLIC_CLAIMS.md).
+
+---
 
 ## Repository Structure
 
 ```
-src/trn/
+src/trimemory/
     tri_memory.py    TriMemoryEngine (KV + TRN + Retrieval)
     retrieval.py     RetrievalIndex (bag/hidden/hybrid search)
     model.py         TRNModel (standalone)
@@ -188,41 +223,19 @@ src/trn/
     router.py        Retrieval router / gate
     config.py        TRNConfig (toy, trn_100m, trn_400m, trn_1b)
     agent_memory.py  Streaming agent inference wrapper
-    integrations/    vLLM backend, llama.cpp, LangChain, AutoGen, CrewAI
 
 scripts/
-    run_trimemory_streaming_eval.py    Streaming evaluation with telemetry
-    analyze_trimemory_oldfact_failures.py  Failure classification (Type A--E)
-    bench_phase7_gpu.py                GPU benchmark (TRN vs TF+KV)
     eval_go_no_go.py                   Go/No-Go gate evaluation
+    run_trimemory_streaming_eval.py    Streaming evaluation with telemetry
+    bench_phase7_gpu.py                GPU benchmark (TRN vs TF+KV)
+
+data/policybench/
+    policy_v1.jsonl                    PolicyBench N=10
 
 tests/     277 unit tests
-docs/      Architecture, limitations, integration guides
-artifacts/ Timestamped experiment runs
+docs/      Architecture, limitations, public claims audit
 ```
-
-## Install
-
-```bash
-git clone https://github.com/TODO/trn.git
-cd trn
-pip install -e ".[dev]"
-pytest
-```
-
-Requires Python 3.10+, PyTorch 2.1+.
 
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
-
-## Citation
-
-```bibtex
-@software{trimemory2026,
-  title  = {TriMemory},
-  author = {TriMemory Contributors},
-  year   = {2026},
-  url    = {https://github.com/TODO/trn},
-}
-```
