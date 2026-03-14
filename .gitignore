@@ -66,6 +66,14 @@ artifacts/trimemory_*/
 artifacts/trn_*/
 artifacts/v[0-9]*/
 
+# Internal launch strategy docs (not for public repo)
+artifacts/phase40_launch/apache2_migration.md
+artifacts/phase40_launch/github_discoverability.md
+artifacts/phase40_launch/pitches_faq_recommendations.md
+artifacts/phase40_launch/pre_launch_checklist.md
+artifacts/phase40_launch/x_threads.md
+artifacts/phase40_launch/lp_and_abstracts.md
+
 # One-off experiment scripts (keep core scripts)
 scripts/run_v[0-9]*.py
 scripts/run_e[0-9]*.py
