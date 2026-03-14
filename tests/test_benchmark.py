@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import pytest
-import torch
 
 from trimemory.benchmark import (
     BenchmarkResult,
     benchmark_forward,
     benchmark_step_single,
-    print_benchmark_report,
     run_all_benchmarks,
 )
 from trimemory.config import TRNConfig

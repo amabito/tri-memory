@@ -8,13 +8,11 @@ Categories tested:
 """
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
 import pytest
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
@@ -332,8 +330,8 @@ class TestAdversarialTrainingLoop:
 
         # KL should fail on vocab dimension mismatch
         with pytest.raises((RuntimeError, ValueError)):
-            result = distill_loss(s_logits, t_logits, labels, temperature=2.0,
-                                  kl_weight=1.0, ce_weight=0.1)
+            distill_loss(s_logits, t_logits, labels, temperature=2.0,
+                        kl_weight=1.0, ce_weight=0.1)
 
     def test_single_step_distillation_updates_weights(self, tiny_student):
         """One distillation step must actually change student weights."""

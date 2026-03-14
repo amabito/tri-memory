@@ -10,7 +10,6 @@ by the near-zero alpha_cum, producing Inf - Inf = NaN).
 
 from __future__ import annotations
 
-import math
 
 import pytest
 import torch

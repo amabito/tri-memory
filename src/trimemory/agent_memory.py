@@ -108,7 +108,6 @@ class AgentMemory:
 
     def reset(self) -> None:
         """Zero all resonance states and reset position counter."""
-        K = self.cfg.n_oscillators
         for i in range(self.cfg.n_layers):
             self._states_r[i].zero_()
             self._states_i[i].zero_()

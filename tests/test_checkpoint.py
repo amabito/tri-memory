@@ -2,7 +2,6 @@
 from __future__ import annotations
 import pytest
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
 

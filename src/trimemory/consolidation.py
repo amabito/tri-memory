@@ -20,10 +20,9 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
-import torch
 from torch import Tensor
 
-from trimemory.goal_state import GoalAwareScorer, GoalState
+from trimemory.goal_state import GoalState
 from trimemory.retrieval import ChunkRecord, RetrievalIndex
 
 

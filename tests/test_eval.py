@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -123,12 +122,11 @@ def test_perplexity_overfit(tmp_path):
     )
 
 
-import math  # noqa: E402 — needed for test_perplexity_finite
+import math  # noqa: E402 -- needed for test_perplexity_finite
+from trimemory.eval import evaluate_perplexity  # noqa: E402
+from torch.utils.data import TensorDataset  # noqa: E402
 
 # --- Tests for evaluate_perplexity (DataLoader-based API) ---
-
-from trimemory.eval import evaluate_perplexity
-from torch.utils.data import TensorDataset
 
 
 def _make_loader(vocab_size=100, seq_len=16, batch_size=4, n_batches=5):

@@ -6,7 +6,6 @@ import torch
 
 from trimemory.config import TRNConfig
 from trimemory.resonance import TemporalResonanceLayer
-from trimemory.scan import sequential_resonance_scan
 
 
 @pytest.fixture

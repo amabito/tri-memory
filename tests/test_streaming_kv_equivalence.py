@@ -8,15 +8,7 @@ This is the critical verification that the KV fix works:
 """
 from __future__ import annotations
 
-import sys
-import os
-
-_src = os.path.join(os.path.dirname(__file__), "..", "src")
-sys.path.insert(0, _src)
-
-import pytest
 import torch
-import numpy as np
 
 from trimemory.config import TRNConfig
 from trimemory.tri_memory import TriMemoryEngine

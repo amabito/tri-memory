@@ -126,13 +126,8 @@ class TestFormalVsProvisional:
             )
 
         # Provisional 180 should appear somewhere (hints or lower-ranked facts)
-        all_text = " ".join(
-            [f.value for f in packet.exact_facts]
-            + [h.text for h in packet.state_hints]
-        )
         # 180 may or may not be extracted depending on parser; not hard requirement
         # But provisional source should be referenced
-        prov_refs = [r for r in packet.source_refs if r.status == "provisional" or "議事録" in (r.title or "")]
         # At least the source ref is preserved
         assert len(packet.source_refs) >= 2, "Both sources should be referenced"
 

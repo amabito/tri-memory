@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import math
-import pytest
 import torch
 from trimemory.scan import _combine, sequential_resonance_scan
 

@@ -7,7 +7,6 @@ from trimemory.memory_mediator import MemoryMediator
 from trimemory.memory_packet import (
     CompactMemoryPacket,
     MemoryFact,
-    SourceRef,
     StateHint,
 )
 

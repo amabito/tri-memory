@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import pytest
 from trimemory.config import TRNConfig
-from trimemory.block import TRNBlock, SwiGLU
+from trimemory.block import TRNBlock
 
 
 @pytest.fixture

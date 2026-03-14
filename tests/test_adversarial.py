@@ -4,7 +4,6 @@ from __future__ import annotations
 import threading
 import pytest
 import torch
-import torch.nn as nn
 from trimemory.config import TRNConfig
 from trimemory.scan import _combine, sequential_resonance_scan
 from trimemory.oscillator import OscillatorProjection
@@ -283,7 +282,6 @@ def test_step_single_state_not_mutated_inplace(
 
 def test_inf_input_to_oscillator(toy_cfg: TRNConfig) -> None:
     """Very large input (1e38) -> softplus clamp keeps A <= 10, all outputs finite."""
-    from trimemory.oscillator import OscillatorProjection
     torch.manual_seed(20)
     proj = OscillatorProjection(toy_cfg.d_model, toy_cfg.n_oscillators).eval()
     B, n = 2, 3
@@ -309,7 +307,7 @@ def test_zero_sequence(toy_model: TRNModel, toy_cfg: TRNConfig) -> None:
 
 def test_negative_token_ids(toy_model: TRNModel) -> None:
     """Negative token ids — undefined semantics but must not segfault."""
-    B, n = 1, 2
+    B = 1
     input_ids = torch.tensor([[-1, -2]], dtype=torch.long)
     try:
         with torch.no_grad():

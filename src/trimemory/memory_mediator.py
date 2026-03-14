@@ -19,7 +19,6 @@ from typing import Any
 from trimemory.memory_packet import (
     CompactMemoryPacket,
     MemoryFact,
-    SourceRef,
     StateHint,
 )
 

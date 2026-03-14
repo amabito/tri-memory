@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import tracemalloc
 
-import pytest
 import torch
 
 from trimemory.config import TRNConfig

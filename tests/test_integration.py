@@ -10,18 +10,16 @@ Tests that cover:
 from __future__ import annotations
 
 import math
-import struct
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 from trimemory.checkpoint import load_checkpoint, save_checkpoint
 from trimemory.config import TRNConfig
-from trimemory.data import PackedDataset, build_dataloader
 from trimemory.eval import evaluate_perplexity
 from trimemory.model import TRNModel
 from trimemory.trainer import SimpleTrainer
@@ -71,12 +69,6 @@ def test_train_eval_pipeline():
     fixed_input = _fixed_batch(cfg, n_seqs, seq_len, cfg.vocab_size, seed=7)
 
     # Evaluate initial perplexity before training
-    eval_loader = DataLoader(
-        torch.utils.data.TensorDataset(fixed_input),
-        batch_size=batch_size,
-        shuffle=False,
-    )
-
     # Build a DataLoader that returns dict with 'input_ids'
     class DictDataset(torch.utils.data.Dataset):
         def __init__(self, data: torch.Tensor):
@@ -221,7 +213,7 @@ def test_packed_dataset_full_pipeline():
         losses = trainer.train(str(data_path), n_steps=10, batch_size=batch_size)
 
     assert len(losses) == 10, f"Expected 10 losses, got {len(losses)}"
-    assert all(math.isfinite(l) for l in losses), "NaN/Inf loss detected"
+    assert all(math.isfinite(v) for v in losses), "NaN/Inf loss detected"
 
 
 # ---------------------------------------------------------------------------

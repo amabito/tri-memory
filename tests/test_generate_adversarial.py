@@ -5,7 +5,6 @@ and state correctness issues that happy-path tests miss.
 """
 from __future__ import annotations
 
-import pytest
 import torch
 
 from trimemory.config import TRNConfig

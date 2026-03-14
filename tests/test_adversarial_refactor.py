@@ -13,14 +13,10 @@ Covers:
 """
 from __future__ import annotations
 
-import math
-import types
-from typing import Optional
 from unittest.mock import patch
 
 import pytest
 import torch
-import torch.nn as nn
 
 from trimemory.config import TRNConfig
 from trimemory.resonance import TemporalResonanceLayer
@@ -452,9 +448,6 @@ class TestTriMemoryEngineEmbeddingReuse:
         B, T = 1, 4
         input_ids = torch.randint(0, engine_cfg.vocab_size, (B, T))
         states_r, states_i = self._make_states(engine_cfg, B, torch.device("cpu"))
-
-        # Capture original storage pointers
-        orig_data_ptrs_r = [s.data_ptr() for s in states_r]
 
         with torch.no_grad():
             _, new_r, new_i, _ = engine.forward_with_memory(

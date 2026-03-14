@@ -1,7 +1,6 @@
 """Verify that identical seeds produce identical training outcomes."""
 from __future__ import annotations
 
-import pytest
 import torch
 
 from trimemory.bench_data import seed_everything, NextTokenCopyDataset

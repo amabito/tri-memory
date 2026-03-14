@@ -1,6 +1,5 @@
 """Tests for src/trn/scheduler.py."""
 from __future__ import annotations
-import math
 import pytest
 import torch
 import torch.optim as optim
