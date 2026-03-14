@@ -1,0 +1,26 @@
+criterion,tier,status,value,threshold,description
+speedup>=2x,T1,PASS,10.8543,2.0000,TRN/TF avg TPS ratio at T>=5000: 10.85
+memory_reduction>=10x,T1,PASS,1000.0000,10.0000,KV=16000.0KB / TRN=16.0KB = 1000.0x
+state_constant,T1,PASS,0.0000,0.0100,"TRN state KB range: [8.00, 8.00]"
+numerical_stable,T1,PASS,1.0000,1.0000,TRN generates 16 tokens without NaN/Inf
+agent_scale>=20x,T1,PASS,1000.0000,20.0000,KV/TRN size ratio at T=1000: 1000.0x
+trn_pattern_parity,T1,PASS,3.0000,3.0000,TRN/TF loss ratio <= 1.5x on 3/3 tasks: smoothing=1.01x; running_mean=1.00x; timeseries=0.96x
+trn_pattern_beyond_w,T1,PASS,0.6680,0.3500,trend_shift at d>=W: d=64: acc=0.775 tf=0.680; d=128: acc=0.775 tf=0.697; d=256: acc=0.668 tf=0.731
+signal_continuation,T1,PASS,1.0000,3.0000,signal_continuation MSE/TF at d>=2W: d=128: mse_ratio=1.00x; d=256: mse_ratio=1.00x
+nih_recall_zero,T2,SKIP,0.0000,0.0500,No NiH data
+selective_copy_low,T2,SKIP,0.0000,0.1500,No selcopy data
+gt_beyond_window_chance,T2,SKIP,0.0000,0.3500,No GT data at d>W
+gt_reversal_chance,T2,SKIP,0.0000,0.3500,No GT reversal data at d>W
+trp_degraded,T2,SKIP,0.0000,0.0000,No TRP data
+trn_tps_1k,T3,PASS,239.7481,100.0000,TRN TPS at T=1000: 239.7
+trn_tps_10k,T3,PASS,230.8566,100.0000,TRN TPS at T=10000: 230.9
+kv_cache_growth,T3,PASS,50.0000,50.0000,Analytical: KV grows proportional to T (50k/1k = 50x)
+agent_scale_1k,T3,PASS,15.6250,100.0000,TRN 1000 agents state: 15.62 MB
+agent_scale_10k,T3,PASS,156.2500,2000.0000,TRN 10000 agents state: 156.25 MB
+throughput_per_mb,T3,PASS,15343.8812,4.7224,"TRN TPS/MB=15343.9, TF TPS/MB=4.7"
+copy_final_acc,T3,PASS,1.0000,0.9000,Copy task final accuracy: 1.0000
+frequency_drift_parity,T3,SKIP,0.0000,0.5000,No frequency_drift data
+amplitude_envelope_parity,T3,SKIP,0.0000,0.5000,No amplitude_envelope data
+running_mean_parity,T3,SKIP,0.0000,0.5000,No running_mean data
+w_sweep_monotonic,T3,SKIP,0.0000,3.0000,No W-sweep data
+real_use_case_pass,T3,SKIP,0.0000,0.0000,Requires bench_real_usecases.csv (not yet available)

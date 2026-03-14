@@ -1,0 +1,23 @@
+criterion,tier,status,value,threshold,description
+speedup>=2x,T1,PASS,10.8543,2.0000,TRN/TF avg TPS ratio at T>=5000: 10.85
+memory_reduction>=10x,T1,PASS,1000.0000,10.0000,KV=16000.0KB / TRN=16.0KB = 1000.0x
+accuracy_degradation<=15%,T1,PASS,0.0000,0.1500,"TRN acc=1.0000, TF acc=1.0000, degradation=0.0000"
+state_constant,T1,PASS,0.0000,0.0100,"TRN state KB range: [8.00, 8.00]"
+agent_scale>=20x,T1,PASS,1000.0000,20.0000,KV/TRN size ratio at T=1000: 1000.0x
+numerical_stable,T1,PASS,1.0000,1.0000,TRN generates 16 tokens without NaN/Inf
+ppd_window_generalization,T1,PASS,0.2188,0.2500,PPD at seq>64: worst_gap=0.2188 (tolerance=0.25). seq=128: dual=0.781 tf=1.000 gap=0.219; seq=256: dual=1.000 tf=1.000 gap=0.000; seq=512: dual=0.781 tf=1.000 gap=0.219
+copy_task_pass,T2,PASS,50.0000,500.0000,Copy task: achieved threshold at step 50
+selective_copy_pass,T2,SKIP,0.0000,2000.0000,No selcopy data
+trn_beats_tf_copy,T2,PASS,50.0000,100.0000,"TRN reached loss<0.1 at step 50, TF at step 100"
+long_ctx_tps_ratio,T2,PASS,399.9134,5.0000,Avg TRN/TF TPS at ctx>=5000: 399.91x
+state_kb_reasonable,T2,PASS,16.0000,100.0000,TRN 100M state: 16.00 KB
+dual_nih_long_range,T2,FAIL,0.0000,0.0000,NiH recall at dist>64: best=0.0000 (T2 reference; TRN cannot do content-addressed retrieval)
+gt_window_recovery,T2,FAIL,0.3164,0.0000,GT recall at dist>64: best=0.3164 (T2 reference; TRN cannot do discrete symbolic recall outside KV window)
+gt_reversal_recovery,T2,FAIL,0.2617,0.0000,GT reversal at dist>64: best=0.2617 (T2 reference; expected chance level ~0.25)
+trn_tps_1k,T3,PASS,239.7481,100.0000,TRN TPS at T=1000: 239.7
+trn_tps_10k,T3,PASS,230.8566,100.0000,TRN TPS at T=10000: 230.9
+kv_cache_growth,T3,PASS,50.0000,50.0000,Analytical: KV grows proportional to T (50k/1k = 50x)
+agent_scale_1k,T3,PASS,15.6250,100.0000,TRN 1000 agents state: 15.62 MB
+agent_scale_10k,T3,PASS,156.2500,2000.0000,TRN 10000 agents state: 156.25 MB
+throughput_per_mb,T3,PASS,15343.8812,4.7224,"TRN TPS/MB=15343.9, TF TPS/MB=4.7"
+copy_final_acc,T3,PASS,1.0000,0.9000,Copy task final accuracy: 1.0000

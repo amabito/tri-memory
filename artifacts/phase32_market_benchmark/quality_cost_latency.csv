@@ -1,0 +1,5 @@
+system,model,condition,n_cases,currval,composite,authority,uncertainty,unsupported_rate,unsafe_overclaim,unsafe_action,safe_intervention,avg_cost_usd,avg_latency_sec,avg_total_ms,hard_currval,hard_n
+32B plain,deepseek-r1:32b,plain,10,0.400,0.710,0.500,1.000,0.000,0.400,0.100,0.000,0.001601,22.40,22398.2,0.500,7
+7B plain,qwen2.5:7b,plain,10,0.500,0.808,0.880,1.000,0.000,0.400,0.100,0.000,0.000092,3.38,3379.3,0.614,7
+7B+TriMemory,qwen2.5:7b,trimemory,10,0.380,0.781,0.910,1.000,0.000,0.400,0.100,0.000,0.000113,3.17,3170.4,0.443,7
+7B+TriMemory+VERONICA,qwen2.5:7b,trimemory_veronica,10,0.380,0.781,0.910,1.000,0.000,0.000,0.000,0.400,0.000114,3.20,3200.9,0.443,7

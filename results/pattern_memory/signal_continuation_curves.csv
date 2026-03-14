@@ -1,0 +1,16 @@
+task,model,backend,distance,accuracy,mse,tf_accuracy,tf_mse,acc_gap_vs_tf,mse_ratio_vs_tf
+signal_continuation,trn,trn,0,0.0371,251.2793,0.0352,272.2441,0.0020,0.9230
+signal_continuation,tf,tf,0,0.0352,272.2441,0.0352,272.2441,0.0000,1.0000
+signal_continuation,dual_w64,dual_w64,0,0.0352,272.2441,0.0352,272.2441,0.0000,1.0000
+signal_continuation,trn,trn,32,0.0469,202.6602,0.0332,170.0293,0.0137,1.1919
+signal_continuation,tf,tf,32,0.0332,170.0293,0.0332,170.0293,0.0000,1.0000
+signal_continuation,dual_w64,dual_w64,32,0.0410,178.8418,0.0332,170.0293,0.0078,1.0518
+signal_continuation,trn,trn,64,0.0176,347.2773,0.0176,347.2773,0.0000,1.0000
+signal_continuation,tf,tf,64,0.0176,347.2773,0.0176,347.2773,0.0000,1.0000
+signal_continuation,dual_w64,dual_w64,64,0.0176,347.2773,0.0176,347.2773,0.0000,1.0000
+signal_continuation,trn,trn,128,0.0332,275.8262,0.0332,275.8262,0.0000,1.0000
+signal_continuation,tf,tf,128,0.0332,275.8262,0.0332,275.8262,0.0000,1.0000
+signal_continuation,dual_w64,dual_w64,128,0.0332,275.8262,0.0332,275.8262,0.0000,1.0000
+signal_continuation,trn,trn,256,0.0371,305.8516,0.0352,307.3750,0.0020,0.9950
+signal_continuation,tf,tf,256,0.0352,307.3750,0.0352,307.3750,0.0000,1.0000
+signal_continuation,dual_w64,dual_w64,256,0.0352,307.3750,0.0352,307.3750,0.0000,1.0000

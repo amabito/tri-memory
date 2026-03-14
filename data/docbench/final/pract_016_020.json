@@ -1,0 +1,469 @@
+[
+  {
+    "sample_id": "PRACT-016",
+    "type": "interim_error",
+    "difficulty": "hard",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "draft",
+        "title": "情報セキュリティ監査報告書 (ドラフト版) -- 2025年第3四半期",
+        "content": "1. エグゼクティブサマリー\n本監査は2025年7月~9月を対象期間とし、インフラ・アプリケーション・アクセス管理の3領域を評価した。\n\n2. 重大脆弱性 (Critical) -- 5件\nCV-001: 外部公開APIの認証バイパス (CVSS 9.8)\nCV-002: データベース管理者パスワードの平文保存 (CVSS 9.1)\nCV-003: VPN集約装置のファームウェア未更新 (CVSS 8.9)\nCV-004: 特権アカウントの多要素認証未設定 (CVSS 8.7)\nCV-005: 旧バージョンSSLv3の有効化 (CVSS 7.5)\n\n3. 中程度脆弱性 (High): 12件 (本文省略)\n\n本報告書はドラフトであり、事業部レビュー後に確定する。",
+        "metadata": {
+          "date": "2025-10-15",
+          "version": "0.9-draft",
+          "status": "draft"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "current_main",
+        "title": "情報セキュリティ監査報告書 (最終版) -- 2025年第3四半期",
+        "content": "1. エグゼクティブサマリー\n本監査は2025年7月~9月を対象期間とし、インフラ・アプリケーション・アクセス管理の3領域を評価した。是正対応が完了した項目については最終判定を変更した。\n\n2. 重大脆弱性 (Critical) -- 2件\nCV-001: 外部公開APIの認証バイパス (CVSS 9.8) -- 未是正\nCV-003: VPN集約装置のファームウェア未更新 (CVSS 8.9) -- 未是正\n\n3. 是正済み (ドラフトからCritical降格)\nCV-002: データベース管理者パスワードの平文保存 -- 2025-10-20 是正完了、Resolved\nCV-004: 特権アカウントの多要素認証未設定 -- 2025-10-28 是正完了、Resolved\nCV-005: 旧バージョンSSLv3の有効化 -- 後述のエラータ参照\n\n4. 中程度脆弱性 (High): 11件\n是正件数: 1件 (対応期限内)\n\n確定日: 2025-11-15 / 承認者: CISO 田中誠一",
+        "metadata": {
+          "date": "2025-11-15",
+          "version": "1.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "監査報告書エラータ (ERRATA-2025-Q3-001)",
+        "content": "発行日: 2025-11-20\n対象: 情報セキュリティ監査報告書 最終版 (v1.0, 2025-11-15)\n\n訂正事項:\nCV-005 (旧バージョンSSLv3の有効化) の分類を以下のとおり訂正する。\n\n変更前: Critical (CVSS 7.5) -- 未是正\n変更後: High (CVSS 6.1) -- 調査の結果、TLSv1.3が既に優先されており実際のダウングレード攻撃リスクは限定的と再評価。重大脆弱性の要件を満たさない。\n\n訂正後の最終カウント:\n  Critical: 2件 (CV-001, CV-003) -- 変更なし\n  High: 12件 (CV-005を格上げ)\n\n承認: 技術監査委員会 2025-11-20",
+        "metadata": {
+          "date": "2025-11-20",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "現時点で未是正のCritical脆弱性は何件か。",
+    "gold_answer_text": "未是正のCritical脆弱性は2件 (CV-001: 外部公開APIの認証バイパス、CV-003: VPNファームウェア未更新)。\n\nドラフト版には5件のCriticalが記載されていたが、最終版でCV-002とCV-004は是正完了によりResolvedとなった。CV-005はエラータにより重大度がCritical→Highへ再分類されたが、CriticalカウントはCV-001とCV-003の2件のまま変わらない。エラータはCritical件数を変更していない点に注意。",
+    "gold_answer_structured": {
+      "current_value": "未是正Critical 2件 (CV-001, CV-003)",
+      "previous_value": "ドラフト時点でCritical 5件",
+      "reason": "CV-002/CV-004は是正完了。CV-005はエラータでHigh再分類。最終版のCritical 2件は変更なし。",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "重大脆弱性 (Critical) -- 2件", "role": "primary_source" },
+      { "doc_id": "doc_02", "span_id": "是正済み (ドラフトからCritical降格)", "role": "supporting_context" },
+      { "doc_id": "doc_03", "span_id": "訂正後の最終カウント: Critical: 2件", "role": "supporting_context" },
+      { "doc_id": "doc_01", "span_id": "重大脆弱性 (Critical) -- 5件", "role": "contradiction_source" }
+    ],
+    "distractors": [
+      {
+        "description": "ドラフト版の記載をそのまま参照",
+        "trap_value": "5件",
+        "trap_source": "doc_01 ドラフト版"
+      },
+      {
+        "description": "エラータでCV-005がCriticalから降格されたことを最終版の2件変更と誤解",
+        "trap_value": "1件 (エラータ後にCV-001のみ残ると誤解するケース)",
+        "trap_source": "doc_03 エラータの誤読"
+      },
+      {
+        "description": "是正済みの2件 (CV-002, CV-004) を未是正と混同",
+        "trap_value": "4件",
+        "trap_source": "doc_01 + doc_02 の不完全な統合"
+      }
+    ],
+    "expected_failure_modes": [
+      {
+        "mode": "STALE_FACT",
+        "description": "ドラフト版の5件をそのまま回答する。",
+        "triggered_by": "retrieval_only"
+      },
+      {
+        "mode": "INTERMEDIATE_VERSION_CONFUSION",
+        "description": "最終版の2件を正しく参照するが、エラータがCritical件数を変えないことを見落とし1件や3件と答える。",
+        "triggered_by": "no_cross_reference"
+      },
+      {
+        "mode": "INCOMPLETE_JUSTIFICATION",
+        "description": "2件と正答するがCV-005の再分類経緯を考慮せず回答根拠が不完全。",
+        "triggered_by": "shallow_reading"
+      }
+    ],
+    "required_capabilities": [
+      "version_resolution",
+      "document_status_awareness",
+      "cross_document_evidence",
+      "inconsistency_detection"
+    ],
+    "evaluator_notes": "ドラフト5件 -> 最終2件の変化はCV-002/CV-004の是正とCV-005のエラータによる再分類の組み合わせ。エラータはCritical件数を変えない (2件のまま) のが核心。ドラフトを引いてくるモデルは5件と答える。エラータを読んで「Criticalが減った」と誤解するモデルは1件と答える可能性がある。",
+    "split": "dev"
+  },
+  {
+    "sample_id": "PRACT-017",
+    "type": "superseded_condition",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "previous_version",
+        "title": "SaaSライセンス契約書 (原契約) -- 2024-04-01",
+        "content": "第8条 代金の支払い\n8.1 支払期限: 請求書発行日から30日以内 (NET 30)\n8.2 遅延損害金: 支払期限翌日から年率14.6% (日割り計算)\n8.3 通貨: 日本円 (JPY)\n8.4 支払方法: 銀行振込 (受益者負担)\n8.5 早期支払割引: 請求書発行日から10日以内に支払った場合、請求金額の1%を翌月請求で控除する。\n\n第9条 価格改定\n9.1 ベンダーは30日前の書面通知により価格を改定できる。改定は次の契約更新日以降に有効となる。\n\n有効期間: 2024-04-01 ~ 2027-03-31 (3年契約)\n契約金額: 月額 ¥1,200,000 (税別)",
+        "metadata": {
+          "date": "2024-04-01",
+          "version": "1.0",
+          "status": "superseded"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "current_main",
+        "title": "SaaSライセンス契約 変更覚書 第1号 -- 2026-01-01",
+        "content": "本覚書は、甲 (株式会社アルファテック) と乙 (クラウドサービス株式会社) との間の2024-04-01付SaaSライセンス契約書 (以下「原契約」) の一部を変更するものである。\n\n変更内容:\n第8条8.1 支払期限\n  変更前: 請求書発行日から30日以内\n  変更後: 請求書発行日から45日以内 (NET 45)\n  発効日: 2026年1月1日\n\n原契約の他の条項は引き続き有効とする。\n\n締結日: 2025-12-15 / 甲: 代表取締役 山田太郎 / 乙: 営業本部長 鈴木一郎",
+        "metadata": {
+          "date": "2026-01-01",
+          "version": "amendment-1",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "支払管理システム 設定メモ (経理部内部資料) -- 2026-01-05",
+        "content": "支払条件変更の対応について\n\n対象ベンダー: クラウドサービス株式会社\n変更前: NET30 (支払期限30日)\n変更後: NET45 (支払期限45日)\n適用開始: 2026年1月請求分から\n\n注意事項:\n- 2025年12月以前の請求書はNET30で処理済み。変更不要。\n- 遅延損害金 (年率14.6%) の条件は変更なし。原契約第8条8.2が引き続き適用される。\n- 早期支払割引 (10日以内で1%控除) も引き続き有効。\n\n担当: 経理部 佐藤花子 / 2026-01-05",
+        "metadata": {
+          "date": "2026-01-05",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "現在の支払条件はいくつか。いつから変更されたか。",
+    "gold_answer_text": "現在の支払期限はNET 45 (請求書発行日から45日以内) であり、2026年1月1日から適用されている。\n\n原契約 (2024-04-01) ではNET 30だったが、変更覚書第1号により2026-01-01発効でNET 45に変更された。遅延損害金 (年率14.6%)、早期支払割引 (10日以内で1%控除)、その他の条項は原契約のまま変更なし。",
+    "gold_answer_structured": {
+      "current_value": "NET 45 (請求書発行日から45日以内)、2026-01-01発効",
+      "previous_value": "NET 30 (請求書発行日から30日以内)",
+      "reason": "変更覚書第1号 (2025-12-15締結、2026-01-01発効) により変更",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "変更後: 請求書発行日から45日以内", "role": "primary_source" },
+      { "doc_id": "doc_02", "span_id": "発効日: 2026年1月1日", "role": "primary_source" },
+      { "doc_id": "doc_01", "span_id": "8.1 支払期限: 請求書発行日から30日以内", "role": "contradiction_source" },
+      { "doc_id": "doc_03", "span_id": "適用開始: 2026年1月請求分から", "role": "supporting_context" }
+    ],
+    "distractors": [
+      {
+        "description": "原契約の詳細条件 (遅延損害金・早期割引) が充実しているため検索ランキングで上位になりやすい",
+        "trap_value": "NET 30",
+        "trap_source": "doc_01 原契約第8条"
+      },
+      {
+        "description": "変更覚書は条件変更のみ記載し他条項の詳細がないため、原契約の全内容が有効と誤読",
+        "trap_value": "NET 30 (原契約の詳細条件で全条項が有効とする誤解)",
+        "trap_source": "doc_01 + doc_02 の誤統合"
+      }
+    ],
+    "expected_failure_modes": [
+      {
+        "mode": "STALE_FACT",
+        "description": "原契約の詳細な記載 (遅延損害金・早期割引含む) が充実しているため原契約を優先参照し、NET 30と回答する。",
+        "triggered_by": "retrieval_only"
+      },
+      {
+        "mode": "INCOMPLETE_JUSTIFICATION",
+        "description": "NET 45は正答するが発効日を回答しない。または原契約のその他条件が変更されていないことに言及しない。",
+        "triggered_by": "latest_only"
+      }
+    ],
+    "required_capabilities": [
+      "version_resolution",
+      "document_status_awareness",
+      "change_reason_retrieval",
+      "cross_document_evidence"
+    ],
+    "evaluator_notes": "原契約は遅延損害金・早期割引・価格改定条項など詳細情報を多く含むため、キーワード検索で上位ヒットしやすい。覚書は変更点のみを簡潔に記載するため情報量が少なく検索スコアが低くなる傾向がある。STALE_FACTの典型的な罠。その他条件の維持についても正確に回答できるかが評価ポイント。",
+    "split": "dev"
+  },
+  {
+    "sample_id": "PRACT-018",
+    "type": "exception_in_notes",
+    "difficulty": "hard",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "RBACアクセス管理ポリシー v3.2 -- 2026-02-01",
+        "content": "第4条 アカウント有効期限\n4.1 標準期限\n  正社員: 在籍中は無期限\n  派遣社員: 派遣契約期間に連動 (自動更新なし)\n  委託先 (コントラクター): アカウント作成日から90日\n\n4.2 延長手続き\n  延長申請は期限の14日前までに所属部門マネージャーが情報システム部に提出。\n  承認権限: 情報システム部長\n\n4.3 例外対応\n  長期コントラクターへの延長特例については別途「コントラクターアクセス例外規程」を参照。\n\n4.4 ポリシー改訂後の再承認 [2026-02-01 追加]\n  本ポリシーが改訂された場合、既存の例外承認は効力を失う。\n  継続して例外を適用するには、ポリシー改訂後30日以内に再承認を取得すること。\n  再承認未取得の場合、期限到来時に標準期限 (90日) が適用される。\n\n版数: v3.2 / 承認: 情報システム部長 2026-02-01",
+        "metadata": {
+          "date": "2026-02-01",
+          "version": "3.2",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "supplementary",
+        "title": "コントラクターアクセス例外規程 v1.1 -- 2025-09-01",
+        "content": "第1条 目的\n長期にわたりプロジェクトに従事するコントラクターに対し、業務継続性を担保するためアカウント有効期間の延長を認める。\n\n第2条 適用条件\n以下の全条件を満たすコントラクターに適用する。\n(1) 同一プロジェクトへの継続従事期間が90日を超える見込み\n(2) 担当プロジェクトマネージャー (スポンサー) による承認が取得済み\n(3) 情報システム部長による例外承認が完了している\n\n第3条 延長期限\n条件を満たす場合、アカウント有効期限をアカウント作成日から180日に延長する。\n\n第4条 再延長\n180日経過後に継続が必要な場合、再度申請を行うこと。",
+        "metadata": {
+          "date": "2025-09-01",
+          "version": "1.1",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "コントラクター情報シート -- 佐々木健 (CTR-2025-089)",
+        "content": "氏名: 佐々木 健\n種別: コントラクター\nプロジェクト: 基幹システムリプレイスプロジェクト (SYS-2025-004)\nアカウント作成日: 2025-09-01\n標準期限 (90日): 2025-11-29\n\n例外承認ステータス:\n  スポンサー承認: 取得済み (プロジェクトマネージャー 橋本雅彦, 2025-12-01)\n  情報システム部長承認: 取得済み (鈴木誠, 2025-12-05)\n  承認後有効期限: 2026-03-01 (アカウント作成日から180日)\n\n備考: 基幹システムリプレイスの第2フェーズ担当。2026年6月末までの従事を予定。",
+        "metadata": {
+          "date": "2025-12-05",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "佐々木健氏のアカウントはいつ失効するか。",
+    "gold_answer_text": "確定的に回答できない。要エスカレーション。\n\n例外承認 (2025-12-05) は「コントラクターアクセス例外規程」の条件をすべて満たしており、本来は180日延長で2026-03-01が有効期限となる。\n\nしかし、RBACポリシーがv3.2に改訂された (2026-02-01) ため、第4条4.4「ポリシー改訂後の再承認」が発動する。既存の例外承認の効力が失われ、改訂から30日以内 (2026-03-03まで) に再承認を取得する必要がある。\n\n再承認の取得状況がコントラクター情報シートに記録されていないため、現時点では (a) 再承認済みなら2026-03-01の有効期限が維持される、(b) 再承認未取得なら期限到来時に標準90日が遡及適用され失効済みになる可能性がある、の判断ができない。情報システム部への確認が必要。",
+    "gold_answer_structured": {
+      "current_value": "不確定 -- 再承認状況による",
+      "previous_value": "例外承認前の標準期限: 2025-11-29 (90日)",
+      "reason": "例外承認により2026-03-01延長済みだが、v3.2改訂 (2026-02-01) により再承認が必要。再承認取得状況が不明。",
+      "status_judgment": "undetermined",
+      "needs_escalation": true
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "4.4 ポリシー改訂後の再承認", "role": "exception_rule" },
+      { "doc_id": "doc_02", "span_id": "第3条 延長期限: 180日", "role": "supporting_context" },
+      { "doc_id": "doc_03", "span_id": "承認後有効期限: 2026-03-01", "role": "provisional_note" },
+      { "doc_id": "doc_01", "span_id": "再承認未取得の場合、期限到来時に標準期限 (90日) が適用", "role": "exception_rule" }
+    ],
+    "distractors": [
+      {
+        "description": "例外承認レコードのみ参照し再承認条項を見落とす",
+        "trap_value": "2026-03-01 (180日延長後の期限)",
+        "trap_source": "doc_03 コントラクター情報シート"
+      },
+      {
+        "description": "標準ポリシーのみ参照し例外を適用しない",
+        "trap_value": "2025-11-29 (90日標準期限)",
+        "trap_source": "doc_01 第4条4.1"
+      },
+      {
+        "description": "ポリシー改訂日(2026-02-01)を有効期限と誤認",
+        "trap_value": "2026-02-01",
+        "trap_source": "doc_01 メタデータ"
+      }
+    ],
+    "expected_failure_modes": [
+      {
+        "mode": "MISSING_EXCEPTION",
+        "description": "コントラクター情報シートの2026-03-01を確定的な有効期限として回答。ポリシーv3.2の4.4条項を見落とす。",
+        "triggered_by": "shallow_reading"
+      },
+      {
+        "mode": "WRONG_SOURCE_PRIORITY",
+        "description": "標準ポリシー (90日) を優先し例外規程を見落として2025-11-29と回答。",
+        "triggered_by": "no_cross_reference"
+      },
+      {
+        "mode": "UNSUPPORTED_DEFINITIVE_ANSWER",
+        "description": "再承認状況が不明であるにもかかわらず確定的な日付を回答する。",
+        "triggered_by": "status_ignorance"
+      }
+    ],
+    "required_capabilities": [
+      "exception_detection",
+      "multi_condition_integration",
+      "document_status_awareness",
+      "cross_document_evidence",
+      "version_resolution"
+    ],
+    "evaluator_notes": "3ステップの推論が必要: (1) 例外規程により180日延長が適用される、(2) ポリシーv3.2の4.4条項により既存例外承認は再承認が必要、(3) 情報シートに再承認記録がなく結論が不確定。2026-03-01を断定する回答は不完全。undetermined判定でneeds_escalation=trueが正解。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-019",
+    "type": "overwritten_history",
+    "difficulty": "easy",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "通知設定デフォルト値仕様 v3.0 -- 2026-01-15",
+        "content": "第3章 デフォルト通知設定\n\n3.1 新規アカウント作成時のデフォルト\n  通知チャネル: Slackのみ\n  通知頻度: リアルタイム (即時)\n  対象イベント: アラート (Critical / High のみ)\n\n3.2 適用範囲\n  本設定は2026-01-15以降に作成された全アカウントに適用される。\n  既存アカウントは既存設定を維持する (強制移行なし)。\n\n3.3 変更履歴\n  v1.0 (2024-06-01): 初版。メールのみ。\n  v2.0 (2025-03-01): メール+Slackに変更。\n  v3.0 (2026-01-15): Slackのみに変更 (メール廃止)。\n\n承認: プロダクト管理部長 中村幸子 / 2026-01-10",
+        "metadata": {
+          "date": "2026-01-15",
+          "version": "3.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "change_notice",
+        "title": "通知設定変更通知 CN-2025-003 -- 2025-03-01",
+        "content": "変更内容: デフォルト通知チャネルの変更\n\n変更前: メールのみ (v1.0設定)\n変更後: メール+Slack (同時配信)\n\n変更理由: Slack導入完了 (2025-02月)。監視アラートのリアルタイム性向上のため。\n\n適用日: 2025-03-01\n対象: 2025-03-01以降の新規アカウント。既存アカウントはオプトイン手続き後に移行。\n\n承認: プロダクト管理部長 中村幸子 / 2025-02-20",
+        "metadata": {
+          "date": "2025-03-01",
+          "version": "1.0",
+          "status": "superseded"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "change_notice",
+        "title": "通知設定変更通知 CN-2026-001 -- 2026-01-15",
+        "content": "変更内容: デフォルト通知チャネルの変更\n\n変更前: メール+Slack (CN-2025-003 以来の設定)\n変更後: Slackのみ (メール通知を廃止)\n\n変更理由: メール通知の開封率が3%以下に低下。Slack通知への一本化でインシデント対応時間を短縮する。2025年下半期のユーザー調査でSlack優先の意向が87%。\n\n適用日: 2026-01-15\n対象: 2026-01-15以降の新規アカウント。既存アカウントは2026-04-01に一括移行 (メール通知終了)。\n\n承認: プロダクト管理部長 中村幸子 / 2026-01-10",
+        "metadata": {
+          "date": "2026-01-15",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "現在のデフォルト通知設定はどのチャネルか。また最初のデフォルト設定は何だったか。",
+    "gold_answer_text": "現在のデフォルトはSlackのみ (2026-01-15から適用)。\n\n最初のデフォルト設定はメールのみ (v1.0, 2024-06-01~)。\n\n変遷: メールのみ (v1.0, 2024-06-01) -> メール+Slack (v2.0, 2025-03-01) -> Slackのみ (v3.0, 2026-01-15)。中間の「メール+Slack」は現在も変更通知 (CN-2025-003) として検索されやすいが、2026-01-15に廃止された。",
+    "gold_answer_structured": {
+      "current_value": "Slackのみ (2026-01-15~)",
+      "previous_value": "最初のデフォルト: メールのみ (2024-06-01~)",
+      "reason": "v3.0でメール通知廃止。CN-2026-001参照。",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "通知チャネル: Slackのみ", "role": "primary_source" },
+      { "doc_id": "doc_01", "span_id": "v1.0 (2024-06-01): 初版。メールのみ。", "role": "supporting_context" },
+      { "doc_id": "doc_03", "span_id": "変更後: Slackのみ", "role": "supporting_context" },
+      { "doc_id": "doc_02", "span_id": "変更後: メール+Slack", "role": "contradiction_source" }
+    ],
+    "distractors": [
+      {
+        "description": "中間状態のメール+Slackを現在の設定と誤認",
+        "trap_value": "メール+Slack",
+        "trap_source": "doc_02 CN-2025-003"
+      },
+      {
+        "description": "最初の設定をメール+Slackと誤認 (最初はメールのみ)",
+        "trap_value": "メール+Slack (最初のデフォルトとして誤答)",
+        "trap_source": "doc_02 CN-2025-003 (最も古い変更通知)"
+      }
+    ],
+    "expected_failure_modes": [
+      {
+        "mode": "INTERMEDIATE_VERSION_CONFUSION",
+        "description": "中間状態 (メール+Slack) を現在の設定として回答。CN-2025-003がCN-2026-001より先に検索にヒットする場合に発生。",
+        "triggered_by": "retrieval_only"
+      },
+      {
+        "mode": "STALE_FACT",
+        "description": "最初のデフォルトをメール+Slackと誤答。最古の変更通知 (CN-2025-003) が「変更前: メールのみ」の記述を含むがそれが初版設定であることを見落とす。",
+        "triggered_by": "shallow_reading"
+      }
+    ],
+    "required_capabilities": [
+      "version_resolution",
+      "change_chain_reconstruction",
+      "document_status_awareness",
+      "multi_version_tracking"
+    ],
+    "evaluator_notes": "3段階の変遷がある。現在値は明確 (easy判定)。中間状態 (メール+Slack) のCN-2025-003がキーワード検索で上位ヒットしやすい典型的なoverwritten_historyケース。最初のデフォルト値はv1.0仕様書の変更履歴欄に埋め込まれており、直接文書としては存在しない点に注意。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-020",
+    "type": "quantity_prose_conflict",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "APIゲートウェイ SLA仕様書 v2.1 -- 2025-11-01",
+        "content": "第5章 性能SLA\n\n5.1 レスポンスタイム目標\n本サービスのAPIレスポンスタイムは200ms未満を目標とする。\n\n5.2 可用性\n月次稼働率: 99.9%以上\n\n5.3 SLA違反の定義\nSLAに規定する性能水準を継続的に下回ることが確認された場合、サービスクレジットを発行する。\n性能水準: 月間p99レスポンスタイムが200ms未満\n\n5.4 除外事項\n定期メンテナンス時間、お客様起因の障害は除外する。\n\n版数: v2.1 / 承認: プロダクト責任者 高橋直樹 / 2025-11-01",
+        "metadata": {
+          "date": "2025-11-01",
+          "version": "2.1",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "supplementary",
+        "title": "監視ダッシュボード アラートしきい値設定 (table) -- 2025-12-15",
+        "content": "APIゲートウェイ アラートしきい値一覧\n\nメトリクス | パーセンタイル | しきい値 | アラートレベル | 通知先\nレスポンスタイム | p99 | 250ms超過 | Warning | 監視チーム\nレスポンスタイム | p95 | 150ms超過 | Info | 開発チーム\nレスポンスタイム | p50 (中央値) | 100ms超過 | Info | 開発チーム\nエラーレート | -- | 1%超過 | Critical | オンコール\n可用性 | -- | 99.9%未満 | Critical | オンコール\n\n設定者: SREチーム 田村浩二 / 最終更新: 2025-12-15\n備考: アラートしきい値はSLA基準より余裕を持って設定している。",
+        "metadata": {
+          "date": "2025-12-15",
+          "version": "1.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "インシデントレポート INC-2026-0042 -- 2026-02-10",
+        "content": "インシデント概要\n発生日時: 2026-02-08 14:23 ~ 16:05 (JST)\n影響: APIゲートウェイ レスポンスタイム劣化\n\n事象:\n14:23頃から特定エンドポイントのレスポンスタイムが急上昇。p99が最大380msに到達。\n\n影響判定:\nSRE: 「p99が200msのSLAを超過したため、SLA違反と判定する。」\n\n是正措置:\n16:05に対象エンドポイントのキャッシュを再構築し復旧。\nSLAクレジット: 当該時間帯の月次SLAへの影響を計算中。\n\n根本原因: キャッシュ期限切れ + 同時リクエスト集中\nステータス: クローズ / 起票者: SREチーム 佐野孝 / 2026-02-10",
+        "metadata": {
+          "date": "2026-02-10",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "APIゲートウェイのレスポンスタイムSLA目標値は何ミリ秒か。",
+    "gold_answer_text": "文書間で矛盾がある。要エスカレーション。\n\n- SLA仕様書 (doc_01): 5.1節で「200ms未満」と記載。5.3節でも「月間p99レスポンスタイムが200ms未満」をSLA違反の基準とする。\n- 監視ダッシュボード設定 (doc_02): p99のアラートしきい値が250ms (Warning)、p95が150msと設定されており、SLA仕様書の200msと整合しない。備考欄には「アラートしきい値はSLA基準より余裕を持って設定」とあるが、SLA基準 (200ms) に対してWarningが250msと緩い方向に設定されている点が矛盾する。\n- インシデントレポート (doc_03): SREが「200msのSLA」を根拠に違反判定しており、200ms説を支持する。\n\n公式SLAは200ms (p99) と判断されるが、監視設定がSLAより緩い250msに設定されている整合性の問題があり、監視設定の見直しが必要。",
+    "gold_answer_structured": {
+      "current_value": "200ms未満 (p99) -- SLA仕様書による公式基準",
+      "previous_value": "不明 (v2.1が参照可能な最新版)",
+      "reason": "仕様書5.1/5.3とインシデントレポートが200msを支持。監視設定のp99=250msはSLA基準と矛盾しており設定ミスの可能性。",
+      "status_judgment": "contradictory",
+      "needs_escalation": true
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "5.1 レスポンスタイム目標: 200ms未満", "role": "primary_source" },
+      { "doc_id": "doc_01", "span_id": "月間p99レスポンスタイムが200ms未満", "role": "primary_source" },
+      { "doc_id": "doc_02", "span_id": "p99 | 250ms超過 | Warning", "role": "conflict_source" },
+      { "doc_id": "doc_02", "span_id": "p95 | 150ms超過 | Info", "role": "conflict_source" },
+      { "doc_id": "doc_03", "span_id": "p99が200msのSLAを超過", "role": "supporting_context" }
+    ],
+    "distractors": [
+      {
+        "description": "監視ダッシュボードのp99アラートしきい値をSLA基準と誤認",
+        "trap_value": "250ms (p99 Warningしきい値)",
+        "trap_source": "doc_02 監視設定テーブル"
+      },
+      {
+        "description": "監視ダッシュボードのp95しきい値をSLA基準と誤認",
+        "trap_value": "150ms (p95 Infoしきい値)",
+        "trap_source": "doc_02 監視設定テーブル"
+      },
+      {
+        "description": "どのパーセンタイルかを指定せず200msとだけ回答し矛盾を見逃す",
+        "trap_value": "200ms (矛盾の指摘なし)",
+        "trap_source": "doc_01 のみ参照"
+      }
+    ],
+    "expected_failure_modes": [
+      {
+        "mode": "TABLE_TEXT_CONFLICT_MISSED",
+        "description": "仕様書の200msを回答するが、監視設定テーブルとの250ms/150msの矛盾を指摘しない。",
+        "triggered_by": "no_cross_reference"
+      },
+      {
+        "mode": "WRONG_SOURCE_PRIORITY",
+        "description": "監視設定テーブルを権威ある設定値として250msをSLA基準と回答。",
+        "triggered_by": "retrieval_only"
+      },
+      {
+        "mode": "UNSUPPORTED_DEFINITIVE_ANSWER",
+        "description": "矛盾があるにもかかわらず単一の値を確定的に回答し、エスカレーションを推奨しない。",
+        "triggered_by": "status_ignorance"
+      }
+    ],
+    "required_capabilities": [
+      "inconsistency_detection",
+      "cross_document_evidence",
+      "quantitative_cross_check",
+      "source_priority_judgment"
+    ],
+    "evaluator_notes": "SLA仕様書 (散文) と監視設定テーブルで数値が異なる典型的なquantity_prose_conflictケース。仕様書200ms vs 監視p99=250ms, p95=150msの三値が存在する。インシデントレポートが200msを支持するため、公式SLAは200msと判断できるが、監視設定との矛盾は要確認。contradictory判定でneeds_escalation=true。監視備考の「余裕を持って設定」という記載が矛盾を複雑にしている点に注意。",
+    "split": "test"
+  }
+]

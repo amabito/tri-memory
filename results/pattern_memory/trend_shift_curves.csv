@@ -1,0 +1,16 @@
+task,model,backend,distance,accuracy,mse,tf_accuracy,tf_mse,acc_gap_vs_tf,mse_ratio_vs_tf
+trend_shift,trn,trn,0,0.5137,0.0000,0.5000,0.0000,0.0137,nan
+trend_shift,tf,tf,0,0.5000,0.0000,0.5000,0.0000,0.0000,nan
+trend_shift,dual_w64,dual_w64,0,0.5137,0.0000,0.5000,0.0000,0.0137,nan
+trend_shift,trn,trn,32,0.7109,0.0000,0.6777,0.0000,0.0332,nan
+trend_shift,tf,tf,32,0.6777,0.0000,0.6777,0.0000,0.0000,nan
+trend_shift,dual_w64,dual_w64,32,0.9316,0.0000,0.6777,0.0000,0.2539,nan
+trend_shift,trn,trn,64,0.7754,0.0000,0.6797,0.0000,0.0957,nan
+trend_shift,tf,tf,64,0.6797,0.0000,0.6797,0.0000,0.0000,nan
+trend_shift,dual_w64,dual_w64,64,0.9219,0.0000,0.6797,0.0000,0.2422,nan
+trend_shift,trn,trn,128,0.7754,0.0000,0.6973,0.0000,0.0781,nan
+trend_shift,tf,tf,128,0.6973,0.0000,0.6973,0.0000,0.0000,nan
+trend_shift,dual_w64,dual_w64,128,0.7480,0.0000,0.6973,0.0000,0.0508,nan
+trend_shift,trn,trn,256,0.6680,0.0000,0.7305,0.0000,-0.0625,nan
+trend_shift,tf,tf,256,0.7305,0.0000,0.7305,0.0000,0.0000,nan
+trend_shift,dual_w64,dual_w64,256,0.8555,0.0000,0.7305,0.0000,0.1250,nan

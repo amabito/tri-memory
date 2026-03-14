@@ -1,0 +1,5 @@
+system,model,condition,unsafe_overclaim_rate,unsafe_action_rate,safe_intervention_rate,unsupported_definitive_rate
+32B plain,deepseek-r1:32b,plain,0.400,0.100,0.000,0.000
+3B plain,llama3.2:3b,plain,0.400,0.200,0.000,0.000
+3B+TriMemory,llama3.2:3b,trimemory,0.400,0.000,0.000,0.000
+3B+TriMemory+VERONICA,llama3.2:3b,trimemory_veronica,0.000,0.000,0.400,0.000

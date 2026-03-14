@@ -1,0 +1,9 @@
+task,model,backend,param,metric,value,n_samples,mean_accuracy,std_accuracy
+ppd,trn,,64,frequency_detection_score,1.0,,,
+ppd,trn,,128,frequency_detection_score,1.0,,,
+ppd,trn,,256,frequency_detection_score,1.0,,,
+ppd,trn,,512,frequency_detection_score,1.0,,,
+ppd,tf,,64,frequency_detection_score,1.0,,,
+ppd,tf,,128,frequency_detection_score,1.0,,,
+ppd,tf,,256,frequency_detection_score,1.0,,,
+ppd,tf,,512,frequency_detection_score,1.0,,,

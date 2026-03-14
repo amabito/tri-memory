@@ -1,0 +1,11 @@
+task,distance,backend,window_size,accuracy,mse
+signal_continuation,0,dual_w64,64,0.0352,272.2441
+signal_continuation,32,dual_w64,64,0.0410,178.8418
+signal_continuation,64,dual_w64,64,0.0176,347.2773
+signal_continuation,128,dual_w64,64,0.0332,275.8262
+signal_continuation,256,dual_w64,64,0.0352,307.3750
+trend_shift,0,dual_w64,64,0.5137,0.0000
+trend_shift,32,dual_w64,64,0.9316,0.0000
+trend_shift,64,dual_w64,64,0.9219,0.0000
+trend_shift,128,dual_w64,64,0.7480,0.0000
+trend_shift,256,dual_w64,64,0.8555,0.0000

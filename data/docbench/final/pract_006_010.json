@@ -1,0 +1,368 @@
+[
+  {
+    "sample_id": "PRACT-006",
+    "type": "faq_vs_formal_spec",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "faq",
+        "title": "FlowDesk よくある質問 -- プラン・料金",
+        "content": "## Q. フリープランで何人まで利用できますか？\n\nフリープランは **最大5ユーザー** までご利用いただけます。チームの初期導入や小規模プロジェクトに最適です。\n\n## Q. フリープランでできること\n\n- タスク管理・コメント機能\n- ファイル添付（1ファイルあたり10MBまで）\n- 基本レポート閲覧\n\n## Q. 有料プランへのアップグレード方法\n\nダッシュボード右上の「アップグレード」ボタンからいつでも変更できます。Pro プランは月額 2,800円/ユーザーです。\n\n最終更新: 2025-11-01",
+        "metadata": {
+          "date": "2025-11-01",
+          "version": "FAQ-2025Q4",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "current_main",
+        "title": "FlowDesk 製品仕様書 -- プランおよびアクセス制御 v3.2",
+        "content": "## 3. フリープランのユーザー構成\n\n### 3.1 ユーザー枠の定義\n\nフリープランにおけるユーザー枠は以下のとおり区分されます。\n\n| ユーザー種別 | 上限数 | 権限 |\n|-------------|--------|------|\n| 一般ユーザー（読み取り専用） | 3名 | 閲覧・コメントのみ |\n| 管理者ユーザー | 2名 | 全機能 |\n| **合計** | **5名** | -- |\n\n### 3.2 一般ユーザーの制限\n\n一般ユーザー（Regular User）はタスクの編集権限を持たず、閲覧およびコメント投稿のみ可能です。一般ユーザーの上限は **3名** です。4名目以降の一般ユーザーを追加するには Pro プラン以上へのアップグレードが必要です。\n\n### 3.3 管理者ユーザーの役割\n\n管理者ユーザーはプロジェクト設定、メンバー招待、課金管理などの全機能を利用できます。フリープランでは最大2名まで管理者を設定できます。\n\n改訂日: 2025-10-15 / 承認: 田中 賢一（プロダクトマネージャー）",
+        "metadata": {
+          "date": "2025-10-15",
+          "version": "v3.2",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "FlowDesk 販売代理店向け注意事項 2025年11月改訂",
+        "content": "## フリープランの説明における注意点\n\n代理店の皆様がフリープランを顧客に説明される際、「5ユーザー」という表現のみを使用すると誤解を招く場合があります。\n\n**正確な説明**: フリープランは合計5ユーザーですが、うち3名は一般ユーザー（読み取り専用）、2名は管理者ユーザーです。\n\n一般ユーザーを4名以上登録したい場合、または一般ユーザーにタスク編集権限を付与したい場合は Pro プランが必要です。\n\n顧客からの問い合わせは support@flowdesk.jp へご案内ください。",
+        "metadata": {
+          "date": "2025-11-10",
+          "version": "2025-11-rev",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "フリープランを利用中の顧客が、4人目の一般ユーザー（管理者ではない通常利用者）を追加したいと言っています。フリープランのままで追加できますか？",
+    "gold_answer_text": "いいえ、追加できません。FAQには「最大5ユーザー」と記載されていますが、製品仕様書（v3.2）によると、フリープランの一般ユーザー（読み取り専用）の上限は3名です。4人目の一般ユーザーを追加するには Pro プラン以上へのアップグレードが必要です。FAQの「5ユーザー」という表記は管理者ユーザー2名を含む合計数であり、一般ユーザーのみの枠は3名に限定されています。",
+    "gold_answer_structured": {
+      "current_value": "一般ユーザーの上限は3名（フリープラン）",
+      "previous_value": "FAQ表記「最大5ユーザー」（合計数であり一般ユーザー単独の枠ではない）",
+      "reason": "仕様書v3.2のセクション3.2に一般ユーザー上限3名と明記。FAQは合計5名という概略を記載しており、ユーザー種別の区分を省略している",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "sec_3_2", "role": "current_value" },
+      { "doc_id": "doc_01", "span_id": "sec_faq_1", "role": "conflict_source" },
+      { "doc_id": "doc_03", "span_id": "sec_note_1", "role": "reason" }
+    ],
+    "distractors": [
+      {
+        "description": "FAQの「最大5ユーザー」という記述を根拠に追加可能と判断してしまう",
+        "trap_value": "5ユーザーまで追加可能",
+        "trap_source": "doc_01:sec_faq_1"
+      },
+      {
+        "description": "合計5名枠に現在の利用者数を考慮せず、空き枠があれば追加できると誤解する",
+        "trap_value": "空きがあれば追加可能",
+        "trap_source": "doc_02:sec_3_1_table"
+      }
+    ],
+    "expected_failure_modes": ["STALE_FACT", "SPEC_OVERSIMPLIFICATION"],
+    "required_capabilities": ["faq_vs_formal_spec_resolution", "user_type_disambiguation", "constraint_extraction"],
+    "evaluator_notes": "FAQは簡略化のため合計数のみを記載。仕様書には種別ごとの上限が明確に定義されている。システムは正式仕様書を優先し、FAQの表現の限界を認識する必要がある。",
+    "split": "dev"
+  },
+  {
+    "sample_id": "PRACT-007",
+    "type": "interim_error",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "draft",
+        "title": "DataBridge API v3 リリースノート（ドラフト版 2025-08-20）",
+        "content": "## DataBridge API v3 変更点一覧 -- 内部レビュー用ドラフト\n\n### 削除されたエンドポイント\n\n以下のエンドポイントは API v3 において **廃止・削除** されます。\n\n- `DELETE /users/bulk` -- 非推奨期間終了のため完全削除\n- `GET /users/search` -- 新しい `/users/query` エンドポイントに統合されたため削除\n- `POST /sessions/legacy` -- セキュリティ上の理由により削除\n\n### 新規エンドポイント\n\n- `GET /users/query` -- 高度なフィルタリングと全文検索をサポート\n- `POST /auth/token/refresh` -- トークン更新フローの改善\n\n**注意**: このドラフトは最終版ではありません。2025-09-05 のリリース前に変更される可能性があります。\n\nドラフト作成: 佐藤 美咲（APIプラットフォームチーム）/ 2025-08-20",
+        "metadata": {
+          "date": "2025-08-20",
+          "version": "v3.0-draft-20250820",
+          "status": "draft"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "final",
+        "title": "DataBridge API v3 公式リリースノート（2025-09-05 GA）",
+        "content": "## DataBridge API v3 -- 正式リリースノート\n\nリリース日: 2025-09-05 / バージョン: 3.0.0\n\n### 非推奨エンドポイント（引き続き利用可能）\n\n以下のエンドポイントは v3 において **非推奨（Deprecated）** となりましたが、移行期間中は引き続き利用できます。\n\n| エンドポイント | 非推奨開始 | サポート終了予定 | 移行先 |\n|--------------|-----------|----------------|--------|\n| `GET /users/search` | 2025-09-05 | **2026-09-30** | `GET /users/query` |\n| `DELETE /users/bulk` | 2025-09-05 | 2026-03-31 | `DELETE /users` (batch) |\n\n### 削除されたエンドポイント\n\n- `POST /sessions/legacy` -- 2025-09-05 をもって完全削除\n\n### 新規エンドポイント\n\n- `GET /users/query` -- フィルター・ソート・全文検索対応\n- `POST /auth/token/refresh` -- RFC 6749 準拠のリフレッシュフロー\n\n承認: 鈴木 拓也（エンジニアリングディレクター）",
+        "metadata": {
+          "date": "2025-09-05",
+          "version": "3.0.0-GA",
+          "status": "final"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "change_notice",
+        "title": "API v3 リリースノート改訂理由 -- レビューコメント記録",
+        "content": "## ドラフトから最終版への変更理由\n\n日付: 2025-09-01 / 記録者: 佐藤 美咲\n\n### `/users/search` エンドポイントの扱い変更\n\n**ドラフトでは削除と記載していたが、最終版では非推奨（移行期間あり）に変更した。**\n\n変更理由:\n1. **顧客フィードバック対応**: ベータ期間中、エンタープライズ顧客8社から「移行期間なしの削除は対応不可」との強い要望があった\n2. **SLA配慮**: 年間契約顧客への変更通知は最低6ヶ月前が規定されており、突然の削除は規約違反になるリスクがあった\n3. **移行支援**: `/users/query` への移行ガイドを整備し、2026年9月末まで両エンドポイントを並行運用することにした\n\n以上の経緯により、ドラフト版の記載内容は採用せず、最終リリースノートが正式版となります。",
+        "metadata": {
+          "date": "2025-09-01",
+          "version": "review-comment-20250901",
+          "status": "final"
+        }
+      }
+    ],
+    "question": "API v3 で `/users/search` エンドポイントはまだ利用できますか？",
+    "gold_answer_text": "はい、現時点では引き続き利用できます。ドラフト版のリリースノートには「削除」と記載されていましたが、正式リリースノート（v3.0.0 GA、2025-09-05）では「非推奨（Deprecated）」に変更され、サポート終了予定は2026年9月30日です。顧客フィードバックとSLA上の規約を考慮し、移行期間が設けられました。",
+    "gold_answer_structured": {
+      "current_value": "非推奨だが2026-09-30まで利用可能",
+      "previous_value": "ドラフト版では削除と記載",
+      "reason": "エンタープライズ顧客からの強い要望とSLA規約上の制約により、ドラフトの「削除」方針を撤回し移行期間を設定",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "sec_deprecated_table", "role": "current_value" },
+      { "doc_id": "doc_01", "span_id": "sec_removed_endpoints", "role": "conflict_source" },
+      { "doc_id": "doc_03", "span_id": "sec_reason_search", "role": "reason" }
+    ],
+    "distractors": [
+      {
+        "description": "ドラフト版の「削除」という記述をそのまま最終決定と誤認する",
+        "trap_value": "API v3 で /users/search は削除された",
+        "trap_source": "doc_01:sec_removed_endpoints"
+      },
+      {
+        "description": "「非推奨」を「利用不可」と誤解する",
+        "trap_value": "非推奨なので使用不可",
+        "trap_source": "doc_02:sec_deprecated_table"
+      }
+    ],
+    "expected_failure_modes": ["DRAFT_AS_FINAL", "DEPRECATED_VS_REMOVED_CONFUSION"],
+    "required_capabilities": ["draft_final_version_resolution", "deprecation_status_interpretation", "revision_reason_extraction"],
+    "evaluator_notes": "ドラフトと最終版で同じエンドポイントの扱いが「削除」から「非推奨」へ変更されている。システムはドキュメントのステータス（draft/final）を正しく評価し、最終版を優先する必要がある。",
+    "split": "dev"
+  },
+  {
+    "sample_id": "PRACT-008",
+    "type": "quantity_prose_conflict",
+    "difficulty": "hard",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "インフラ容量計画書 2025年度版 -- アプリケーションサーバー設計方針",
+        "content": "## 4. 同時接続数の設計基準\n\n### 4.1 概要\n\n本システムのアプリケーションサーバー（AppSrv-Cluster-01）は、ピーク時においても安定したレスポンスを維持するため、**おおよそ500同時接続** を処理できる構成としています。この値は負荷試験および過去の実績データを踏まえた設計目標値です。\n\n### 4.2 スケーリング方針\n\n同時接続数が設計目標値の80%（約400接続）を超えた場合、オートスケーリングが起動し、追加インスタンスが自動的に投入されます。設計目標値を超えた場合でも即座に障害が発生するわけではありませんが、レイテンシの増加が見込まれます。\n\n### 4.3 注意事項\n\n本書に記載の数値はすべて概算であり、正確な限界値については負荷試験報告書（LT-2025-AppSrv-Final）を参照してください。\n\n作成日: 2025-07-01 / 担当: 中村 亮（インフラアーキテクト）",
+        "metadata": {
+          "date": "2025-07-01",
+          "version": "2025-v1.2",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "supplementary",
+        "title": "負荷試験報告書 LT-2025-AppSrv-Final -- 詳細データ",
+        "content": "## 負荷試験結果サマリー\n\n試験日: 2025-06-18 -- 2025-06-20\n試験対象: AppSrv-Cluster-01（本番相当環境）\n担当者: 高橋 誠（QAエンジニア）/ 承認: 中村 亮\n\n### 同時接続数テスト結果\n\n| 同時接続数 | 平均レスポンス (ms) | 99パーセンタイル (ms) | エラー率 | 判定 |\n|-----------|-------------------|---------------------|---------|------|\n| 200 | 45 | 120 | 0.00% | 合格 |\n| 350 | 78 | 210 | 0.00% | 合格 |\n| 480 | 198 | 890 | 0.02% | 合格（上限） |\n| 500 | 412 | 2,100 | 3.40% | 不合格 |\n| 550 | タイムアウト多発 | -- | 18.7% | 不合格 |\n\n### 判定基準および結論\n\n99パーセンタイルレスポンスが1,000ms以内かつエラー率0.1%以内を合格基準とする。\n\n**上記基準を満たす最大同時接続数: 480接続**\n\nこの値をシステムの公式上限値として採用することを推奨する。500接続では基準を超過し、SLAに抵触するリスクがある。\n\n試験環境: AWS c5.4xlarge x4 ノード、nginx 1.24、Java 21",
+        "metadata": {
+          "date": "2025-06-20",
+          "version": "LT-2025-AppSrv-Final",
+          "status": "final"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "インフラ整備計画 概要説明資料（経営層向け）",
+        "content": "## アプリケーションサーバー増強計画\n\n資料作成日: 2025-07-15 / 作成者: 中村 亮\n\n### 現行システムの処理能力\n\n現在のアプリケーションサーバー構成では、**同時接続500件** に対応しています。ピーク時の利用増加に対応するため、2025年第4四半期に追加投資を予定しています。\n\n### 投資計画の根拠\n\n今後12ヶ月でユーザー数が30%増加する見通しであり、同時接続数のピークも相応に増加が見込まれます。現行構成の上限に対して十分なヘッドルームを確保するため、サーバー増強が必要と判断しました。\n\n### 予算概算\n\n追加サーバーリース費用: 月額 480,000円（6ノード追加）",
+        "metadata": {
+          "date": "2025-07-15",
+          "version": "exec-brief-2025Q3",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "アプリケーションサーバー（AppSrv-Cluster-01）の正確な同時接続上限数はいくつですか？",
+    "gold_answer_text": "正確な同時接続上限数は480接続です。容量計画書および経営層向け資料には「500接続」と記載されていますが、これらは概算または丸め値です。正式な負荷試験報告書（LT-2025-AppSrv-Final）の実測データによると、500接続ではエラー率3.40%となりSLA基準（エラー率0.1%以内）を超過します。合格基準を満たす最大値として480接続が公式上限値として推奨されています。",
+    "gold_answer_structured": {
+      "current_value": "480接続（負荷試験での実測上限値）",
+      "previous_value": "500接続（概算・丸め値として容量計画書および経営向け資料に記載）",
+      "reason": "負荷試験報告書の実測データで500接続時のエラー率が3.40%となりSLA基準超過。480接続が合格基準を満たす最大値と確認された",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "sec_conclusion", "role": "current_value" },
+      { "doc_id": "doc_02", "span_id": "sec_table", "role": "current_value" },
+      { "doc_id": "doc_01", "span_id": "sec_4_1", "role": "conflict_source" },
+      { "doc_id": "doc_03", "span_id": "sec_current_capacity", "role": "conflict_source" }
+    ],
+    "distractors": [
+      {
+        "description": "容量計画書の「おおよそ500同時接続」を正確な上限値として採用する",
+        "trap_value": "500接続",
+        "trap_source": "doc_01:sec_4_1"
+      },
+      {
+        "description": "経営層向け資料の「500件」という記述を公式値として採用する",
+        "trap_value": "500接続",
+        "trap_source": "doc_03:sec_current_capacity"
+      },
+      {
+        "description": "オートスケーリング起動閾値（約400接続）を上限値と誤解する",
+        "trap_value": "400接続",
+        "trap_source": "doc_01:sec_4_2"
+      }
+    ],
+    "expected_failure_modes": ["PROSE_ROUNDING_ACCEPTED", "SUMMARY_OVER_DETAIL", "STALE_FACT"],
+    "required_capabilities": ["table_data_extraction", "prose_vs_measured_data_resolution", "source_authority_ranking"],
+    "evaluator_notes": "3つの文書がすべて同じサーバーを参照しているが、散文・経営資料は丸め値500を使い、実測データのある試験報告書だけが480という正確な値を示す。システムは一次データ（試験報告書のテーブル）を散文の概算より優先する必要がある。",
+    "split": "dev"
+  },
+  {
+    "sample_id": "PRACT-009",
+    "type": "superseded_condition",
+    "difficulty": "easy",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "previous_version",
+        "title": "リモートアクセスセキュリティポリシー v2.1（旧版・廃止済み）",
+        "content": "## 第3条 リモートアクセスの要件\n\n社外から社内リソースおよびクラウドサービスにアクセスする場合、従業員は **必ずVPNに接続した状態** で業務を行うこととする。\n\n### 3.1 対象システム\n\n本条はすべての業務用システムを対象とする。これにはメール、社内グループウェア、外部SaaSサービス（Slack、Google Workspace、Salesforce、その他）を含む。\n\n### 3.2 例外規定\n\n例外は認めない。緊急時においても本ポリシーに従うこと。\n\n### 3.3 違反時の措置\n\nVPN未接続での業務システムアクセスを発見した場合、情報セキュリティ部が調査を実施し、必要に応じて懲戒処分の対象となる場合がある。\n\n制定日: 2022-04-01 / 改訂: 2023-09-01 / 承認: 渡辺 徹（CISO）\n\n**本ポリシーは2025-06-01をもって廃止。後継ポリシーv3.0を参照のこと。**",
+        "metadata": {
+          "date": "2023-09-01",
+          "version": "v2.1",
+          "status": "superseded"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "current_main",
+        "title": "リモートアクセスセキュリティポリシー v3.0（現行版）",
+        "content": "## 第3条 リモートアクセスの要件\n\n本ポリシーはゼロトラストアーキテクチャへの移行に伴い、v2.1を廃止して制定された。\n\n### 3.1 VPN不要のSaaSアプリケーション\n\n以下のSaaSアプリケーションについては、多要素認証（MFA）が有効であることを条件に、**VPNなしで直接アクセスすることを許可する**。\n\n**VPN不要アプリケーション一覧（2025-06-01時点）:**\n- Slack（ビジネスコミュニケーション）\n- Google Workspace（Gmail、Drive、Meet、Calendar）\n- Zoom\n- GitHub（会社アカウントのみ）\n- Confluence / Jira（クラウド版）\n\n### 3.2 VPN接続が引き続き必要なシステム\n\n以下のシステムへのアクセスには引き続きVPN接続が必要です。\n\n- 社内オンプレミスサーバー（ファイルサーバー、基幹システム）\n- 開発環境（dev.company.internal ドメイン）\n- 本番データベースへの直接接続\n\n### 3.3 MFA要件\n\n3.1に記載のSaaSアプリケーションを利用するすべての従業員は、2025-07-01までにMFAを必ず設定すること。\n\n制定日: 2025-06-01 / 承認: 渡辺 徹（CISO）",
+        "metadata": {
+          "date": "2025-06-01",
+          "version": "v3.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "change_notice",
+        "title": "リモートアクセスポリシー改訂のお知らせ（全従業員向け）",
+        "content": "## ポリシー改訂のご案内\n\n発行日: 2025-05-20 / 発行元: 情報セキュリティ部\n\n2025年6月1日より、リモートアクセスセキュリティポリシーが v2.1 から **v3.0** に更新されます。\n\n### 主な変更点\n\n**ゼロトラスト移行の一環として、特定のクラウドSaaSへのVPN要件を撤廃します。**\n\n6月1日以降、Slack および Google Workspace（Gmail、Drive、Meet等）へのアクセスは、MFAを有効にした状態であればVPNなしで行うことができます。\n\nZoom、GitHub、Confluence / Jira も同様にVPN不要となります。\n\n社内サーバーや開発環境へのアクセスには引き続きVPNが必要です。\n\n### MFA設定期限\n\n**2025年7月1日までに全員MFAを設定してください。** 期限後はMFA未設定アカウントはアクセスをブロックします。\n\nご不明点は security@company.co.jp へ。",
+        "metadata": {
+          "date": "2025-05-20",
+          "version": "notice-v3.0-migration",
+          "status": "final"
+        }
+      }
+    ],
+    "question": "在宅勤務中の従業員が Slack と Google Workspace にアクセスする場合、VPN接続は必要ですか？",
+    "gold_answer_text": "いいえ、VPN接続は不要です。現行のリモートアクセスセキュリティポリシー v3.0（2025年6月1日施行）において、SlackおよびGoogle WorkspaceはVPN不要のSaaSアプリケーションとして明示的に許可されています。ただし、多要素認証（MFA）が有効であることが条件です。なお、旧ポリシー v2.1 ではすべてのシステムにVPNが必須でしたが、v2.1 は2025年6月1日に廃止されています。",
+    "gold_answer_structured": {
+      "current_value": "VPN不要（MFA有効を条件に直接アクセス許可）-- ポリシーv3.0",
+      "previous_value": "VPN必須（すべての業務システム対象）-- ポリシーv2.1",
+      "reason": "ゼロトラストアーキテクチャへの移行に伴いv2.1を廃止。SlackとGoogle WorkspaceはVPN不要アプリケーション一覧に明示列挙",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "sec_3_1", "role": "current_value" },
+      { "doc_id": "doc_01", "span_id": "sec_3_1_old", "role": "conflict_source" },
+      { "doc_id": "doc_03", "span_id": "sec_main_change", "role": "reason" }
+    ],
+    "distractors": [
+      {
+        "description": "旧ポリシーv2.1の「すべてのシステムにVPN必須」という記述を適用してしまう",
+        "trap_value": "VPN接続が必要",
+        "trap_source": "doc_01:sec_3_1_old"
+      },
+      {
+        "description": "v2.1の「例外は認めない」という強い文言に引きずられる",
+        "trap_value": "例外なくVPN必須",
+        "trap_source": "doc_01:sec_3_2"
+      }
+    ],
+    "expected_failure_modes": ["STALE_POLICY_APPLIED", "SUPERSEDED_DOCUMENT_USED"],
+    "required_capabilities": ["policy_version_resolution", "superseded_document_detection", "saas_allowlist_lookup"],
+    "evaluator_notes": "旧ポリシーはstatusがsupersededとメタデータに明記されており、廃止注記も文書内に記載されている。システムは廃止済みポリシーを現行ポリシーより優先しないことが求められる。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-010",
+    "type": "exception_in_notes",
+    "difficulty": "hard",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "経費精算規程 第5条 -- 国内出張旅費上限（2025年度版）",
+        "content": "## 第5条 国内出張旅費の上限\n\n### 5.1 基本上限額\n\n国内出張における1日あたりの旅費（宿泊費・交通費・日当の合計）の上限は、役職を問わず **30,000円** とする。\n\n### 5.2 例外規定\n\n以下の条件をすべて満たす場合に限り、1日あたり **最大50,000円** までの精算を認める。\n\n1. 対象従業員が「クライアント対応職」の認定を受けていること\n2. 当該出張について経費管理部門から**事前承認**を取得していること\n3. 承認の有効期間内であること（承認日から **90日間** 有効）\n\n### 5.3 超過申請の手続き\n\n例外規定の適用を希望する場合は、出張前に「高額出張費事前承認申請書（F-EXP-03）」を経費管理部門に提出し、承認を受けること。\n\n### 5.4 不正申請への対応\n\n上限を超える経費申請が承認なく提出された場合、超過分は全額自己負担となる。\n\n制定: 2020-04-01 / 最終改訂: 2025-04-01 / 承認: 大西 浩二（CFO）",
+        "metadata": {
+          "date": "2025-04-01",
+          "version": "2025-v1.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "note",
+        "title": "クライアント対応職 -- 高額旅費承認記録（2025年度）",
+        "content": "## 高額出張費事前承認 -- 承認済みリスト\n\n管理部門用内部資料 / 最終更新: 2026-02-01\n\n| 氏名 | 部署 | クライアント対応職認定 | 承認番号 | **承認日** | **有効期限** | ステータス |\n|------|------|----------------------|---------|-----------|------------|----------|\n| 山田 健太 | 営業第一部 | 認定済 | EXP-2025-0341 | 2025-10-15 | **2026-01-13** | **期限切れ** |\n| 佐々木 遥 | ソリューション営業部 | 認定済 | EXP-2025-0289 | 2025-09-01 | 2025-11-30 | 期限切れ |\n| 田中 美穂 | 営業第二部 | 認定済 | EXP-2026-0042 | 2026-01-20 | 2026-04-20 | **有効** |\n| 伊藤 大輔 | グローバルアカウント部 | 認定済 | EXP-2026-0051 | 2026-01-25 | 2026-04-25 | **有効** |\n\n※ 有効期限は承認日から90日間。期限切れの場合は再申請が必要。\n\n更新担当: 経費管理部 / 小林 由香",
+        "metadata": {
+          "date": "2026-02-01",
+          "version": "approval-register-2025",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "minutes",
+        "title": "営業第一部 Q4 業績レビュー会議 議事録（2026-01-20）",
+        "content": "## 会議概要\n\n日時: 2026年1月20日 14:00-16:00\n場所: 第3会議室 / Zoom併用\n出席者: 山田 健太（営業第一部）、松本 部長（営業第一部長）、経費管理部 小林（オブザーバー）\n\n## 議題3: 出張費精算の取り扱いについて\n\n山田氏より、第4四半期に複数の大口クライアント訪問があり、宿泊費が30,000円を超える可能性があるとの報告があった。\n\n**山田 健太氏の属性確認:**\n- クライアント対応職の認定: **認定済み**（認定日: 2023-06-01、有効期限なし）\n- 高額旅費の事前承認: 承認番号 EXP-2025-0341（承認日: 2025-10-15）\n\n小林氏より、EXP-2025-0341の有効期限が **2026年1月13日で既に失効** していることが指摘された。山田氏および松本部長に対し、引き続き上限超過の精算が必要な場合は **再申請が必要** である旨を説明した。\n\n山田氏は再申請の手続きを行う予定であるが、本会議時点（2026-01-20）では再申請は未完了。\n\n## 次回アクション\n- 山田 健太: F-EXP-03 を経費管理部に再提出する（期限: 2026-01-31）\n- 経費管理部: 提出後5営業日以内に審査・回答\n\n議事録作成: 松本 隆（営業第一部長）/ 2026-01-20",
+        "metadata": {
+          "date": "2026-01-20",
+          "version": "minutes-20260120",
+          "status": "final"
+        }
+      }
+    ],
+    "question": "山田 健太 氏が昨日（2026年2月12日）の国内出張で45,000円を使用しました。この金額を経費精算できますか？",
+    "gold_answer_text": "現時点では確認できません（要確認・要対応）。山田氏はクライアント対応職の認定を受けており、例外規定（上限50,000円）の適用要件のうち1つ目は満たしています。しかし、高額旅費の事前承認（EXP-2025-0341）は2026年1月13日に失効しており、2026年2月12日時点では有効な承認が存在しません。議事録によると再申請の予定はありましたが（2026年1月31日期限）、承認済みリストには2026年2月1日時点で有効な新規承認が登録されていません。承認が取得されているかどうかを経費管理部に確認し、有効な承認がある場合のみ精算が可能です。承認なしに精算した場合、超過分（15,000円）は全額自己負担となります。",
+    "gold_answer_structured": {
+      "current_value": "有効な事前承認の存在が未確認のため精算可否は不明",
+      "previous_value": "事前承認 EXP-2025-0341 は2026-01-13に失効済み",
+      "reason": "経費規程第5条5.2は例外承認の有効期間内であることを要件とする。最新の承認台帳（2026-02-01更新）に山田氏の有効な承認が存在しない。再申請予定があったが完了確認が取れていない",
+      "status_judgment": "undetermined",
+      "needs_escalation": true
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "sec_5_2", "role": "exception" },
+      { "doc_id": "doc_02", "span_id": "sec_approval_table", "role": "provisional_note" },
+      { "doc_id": "doc_03", "span_id": "sec_agenda_3", "role": "reason" }
+    ],
+    "distractors": [
+      {
+        "description": "例外規定の存在（上限50,000円）のみを見て精算可能と判断する",
+        "trap_value": "50,000円上限の例外規定が適用されるため精算可能",
+        "trap_source": "doc_01:sec_5_2"
+      },
+      {
+        "description": "山田氏がクライアント対応職認定を受けていることのみを根拠に例外が適用できると判断する",
+        "trap_value": "クライアント対応職認定済みのため精算可能",
+        "trap_source": "doc_03:sec_agenda_3"
+      },
+      {
+        "description": "再申請を予定していたという事実を「承認済み」と誤解する",
+        "trap_value": "再申請予定があるため実質的に承認と同等",
+        "trap_source": "doc_03:sec_next_action"
+      },
+      {
+        "description": "承認台帳の最終更新日（2026-02-01）以降に承認が下りた可能性を見落とし、確実に不可と断言する",
+        "trap_value": "承認がないため精算不可（断定）",
+        "trap_source": "doc_02:sec_approval_table"
+      }
+    ],
+    "expected_failure_modes": ["EXCEPTION_WITHOUT_EXPIRY_CHECK", "APPROVAL_STATUS_ASSUMED", "OUTDATED_REGISTER_AS_DEFINITIVE"],
+    "required_capabilities": ["multi_condition_exception_evaluation", "date_based_validity_check", "undetermined_status_recognition", "escalation_recommendation"],
+    "evaluator_notes": "このケースはYes/Noで答えられない「未確定」ケースである。例外規定の存在と資格要件の充足は確認できるが、承認の有効性が失効しており、かつ再申請完了の確認が取れない。システムは断定を避け、経費管理部への確認を推奨する必要がある。承認台帳が2026-02-01更新であるため、その後の承認状況が不明である点も考慮すること。",
+    "split": "test"
+  }
+]

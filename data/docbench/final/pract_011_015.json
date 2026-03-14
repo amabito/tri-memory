@@ -1,0 +1,396 @@
+[
+  {
+    "sample_id": "PRACT-011",
+    "type": "overwritten_history",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "カスタマーサポート エスカレーションポリシー v3.0 (2026-02-01)",
+        "content": "カスタマーサポート エスカレーションポリシー\nバージョン: 3.0\n発効日: 2026-02-01\n承認: CS本部長 田中 誠\n\n1. 適用範囲\n本ポリシーは全サポートチャネル (電話・メール・チャット) に適用する。\n\n2. エスカレーションSLA\n優先度 Low: 対応開始まで 24 時間以内\n優先度 Medium: 対応開始まで 8 時間以内\n優先度 High: 対応開始まで 4 時間以内 (初回エスカレーション後)\n優先度 Critical: 対応開始まで 1 時間以内\n\n3. エスカレーション要件\nTier 1 エージェントは以下の条件をいずれか満たした場合、Tier 2 に即エスカレーションする。\n- 同一顧客からの問い合わせが 3 回以上\n- 契約金額が ¥1,000,000 超\n- SLA 違反リスクあり\n- 顧客が明示的に上長対応を要求\n\n4. 改訂履歴\nv3.0 (2026-02-01): High 優先度 SLA を 12h から 4h に短縮。Critical 優先度を新設。",
+        "metadata": {
+          "date": "2026-02-01",
+          "version": "3.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "previous_version",
+        "title": "カスタマーサポート エスカレーションポリシー v2.0 (2025-07-15)",
+        "content": "カスタマーサポート エスカレーションポリシー\nバージョン: 2.0\n発効日: 2025-07-15\n承認: CS本部長 田中 誠\n\n1. 適用範囲\n本ポリシーは全サポートチャネルに適用する。\n\n2. エスカレーションSLA\n優先度 Low: 対応開始まで 24 時間以内\n優先度 Medium: 対応開始まで 8 時間以内\n優先度 High: 対応開始まで 12 時間以内\n優先度 Critical: 規定なし\n\n3. エスカレーション要件\nTier 1 エージェントは以下の条件をいずれか満たした場合、Tier 2 にエスカレーションする。\n- 同一顧客からの問い合わせが 5 回以上\n- 契約金額が ¥1,000,000 超\n- SLA 違反リスクあり\n\n4. 改訂履歴\nv2.0 (2025-07-15): High 優先度 SLA を 24h から 12h に短縮。エスカレーション条件に契約金額基準を追加。",
+        "metadata": {
+          "date": "2025-07-15",
+          "version": "2.0",
+          "status": "superseded"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "previous_version",
+        "title": "カスタマーサポート エスカレーションポリシー v1.0 (2024-04-01)",
+        "content": "カスタマーサポート エスカレーションポリシー\nバージョン: 1.0\n発効日: 2024-04-01\n承認: CS部長 鈴木 一郎\n\n1. 適用範囲\n本ポリシーはメール・電話サポートに適用する。\n\n2. エスカレーションSLA\n全優先度共通: Tier 2 エスカレーション後 24 時間以内に対応開始。\n\n3. エスカレーション要件\nTier 1 エージェントは問題解決できない場合、随時 Tier 2 にエスカレーションする。",
+        "metadata": {
+          "date": "2024-04-01",
+          "version": "1.0",
+          "status": "superseded"
+        }
+      },
+      {
+        "doc_id": "doc_04",
+        "role": "change_notice",
+        "title": "ポリシー変更通知 PCN-2026-003 (2026-01-20)",
+        "content": "変更対象: エスカレーションポリシー v3.0 策定\n変更前 (v2.0): High 優先度 SLA = 12 時間以内\n変更後 (v3.0): High 優先度 SLA = 4 時間以内\n変更理由: 2025年度下半期の顧客満足度調査において、エスカレーション後の初動対応の遅さが不満上位 3 位に入った。競合他社の SLA ベンチマーク (中央値 4 時間) に合わせるため短縮。\nあわせて Critical 優先度 (対応開始 1 時間以内) を新設。対象は障害による売上損失が発生している顧客。\n発効日: 2026-02-01\n承認: CS本部長 田中 誠 (2026-01-20)",
+        "metadata": {
+          "date": "2026-01-20",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "High 優先度チケットのエスカレーション SLA は現在何時間か。また、どのような経緯でその値になったか。",
+    "gold_answer_text": "現行の High 優先度エスカレーション SLA は 4 時間以内 (v3.0, 2026-02-01 発効)。経緯: v1.0 では全優先度共通 24 時間だったが、v2.0 (2025-07-15) で High 優先度が 12 時間に短縮された。さらに v3.0 (2026-02-01) で 12 時間から 4 時間に再短縮。変更理由は 2025年度下半期の顧客満足度調査で初動の遅さが指摘されたことと、競合他社ベンチマーク (中央値 4 時間) への対応。",
+    "gold_answer_structured": {
+      "current_value": "4 時間以内 (High 優先度)",
+      "previous_value": "12 時間以内 (v2.0), 24 時間 (v1.0)",
+      "reason": "顧客満足度調査と競合ベンチマークに基づき 2 段階で短縮",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "section_2_high_priority", "role": "current_value" },
+      { "doc_id": "doc_02", "span_id": "section_2_high_priority", "role": "previous_value" },
+      { "doc_id": "doc_04", "span_id": "変更理由", "role": "reason" }
+    ],
+    "distractors": [
+      {
+        "description": "v2.0 の中間値 12 時間を最新値と誤認する",
+        "trap_value": "12 時間以内",
+        "trap_source": "doc_02 (v2.0 -- superseded)"
+      },
+      {
+        "description": "v1.0 の初期値 24 時間を回答する",
+        "trap_value": "24 時間以内",
+        "trap_source": "doc_03 (v1.0 -- superseded)"
+      }
+    ],
+    "expected_failure_modes": [
+      "INTERMEDIATE_VERSION_CONFUSION: v2.0 の 12 時間を現行値として回答",
+      "LATEST_ONLY_WITHOUT_HISTORY: 現行値 4 時間は正しいが変更経緯を説明できない",
+      "RETRIEVAL_RECENCY_BLIND: キーワード一致で v2.0 の 12h を拾う"
+    ],
+    "required_capabilities": [
+      "version_resolution",
+      "multi_version_tracking",
+      "change_chain_reconstruction",
+      "cross_document_evidence"
+    ],
+    "evaluator_notes": "v2.0 の 12h は「中間値」として見た目が妥当に見えるため高い誘引力を持つ。v3.0 と変更通知を照合することで初めて 4h が確定できる。変更経緯は 3 文書を時系列で追う必要がある。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-012",
+    "type": "unresolved_minutes",
+    "difficulty": "hard",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "リモートワークポリシー v1.2 (2025-10-01)",
+        "content": "リモートワークポリシー\nバージョン: 1.2\n発効日: 2025-10-01\n承認: 人事部長 山本 恵子\n\n1. 目的\n本ポリシーは、全社員のリモートワーク実施条件を定める。\n\n2. リモートワーク実施日数\n正社員・契約社員は週 2 日を上限としてリモートワークを実施できる。\n残り週 3 日は原則出社とする。\n\n3. 適用除外\n試用期間中の社員、および直近 3 か月以内に業績改善計画 (PIP) の対象となった社員は、本ポリシーの週 2 日上限を適用せず、原則週 5 日出社とする。\n\n4. 申請手続き\nリモートワーク実施日の前週金曜 17:00 までに所属部署長に申請し、承認を得ること。\n\n5. 改訂履歴\nv1.2 (2025-10-01): 適用除外条項 (第 3 条) を追加。\nv1.1 (2025-04-01): 申請手続きをシステム化。\nv1.0 (2024-07-01): 制定。週 2 日上限を設定。",
+        "metadata": {
+          "date": "2025-10-01",
+          "version": "1.2",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "minutes",
+        "title": "人事委員会 議事録 第 28 回 (2026-01-15)",
+        "content": "人事委員会 第 28 回議事録\n開催日: 2026-01-15\n出席: 委員長 代表取締役 佐藤 拓、人事部長 山本 恵子、各本部長 6 名\n\n議題 3: リモートワーク上限日数の見直し\n\n提案者 (人事部長): 2025年度社員エンゲージメント調査にて、リモートワーク拡充を希望する社員が 78% に達した。また採用競争力向上の観点から、週 2 日上限を週 3 日に拡充することを提案する。\n\n審議:\n- 生産性懸念について: 在宅勤務日の成果物評価を強化することで対応。\n- 適用時期: 次四半期 (2026年4月1日) からとする。\n\n決議: 賛成多数 (賛成 7 / 反対 0 / 棄権 1) にて、リモートワーク上限を週 2 日から週 3 日に変更することを承認。\n\n次のアクション:\n- 人事部: 2026年3月末までに正式ポリシー (v2.0) を策定・発行。\n- 各部署長: 4月1日以降の運用変更を周知。",
+        "metadata": {
+          "date": "2026-01-15",
+          "version": "1.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "draft",
+        "title": "リモートワークポリシー v2.0 DRAFT (2026-02-20)",
+        "content": "リモートワークポリシー\nバージョン: 2.0 (DRAFT -- 正式発行前)\n作成日: 2026-02-20\n作成: 人事部 制度企画グループ\nステータス: 起草中。正式承認・発行前。2026年4月1日発効予定。\n\n2. リモートワーク実施日数\n正社員・契約社員は週 3 日を上限としてリモートワークを実施できる。\n残り週 2 日は原則出社とする。\n\n3. 適用除外\n試用期間中の社員、および直近 3 か月以内に業績改善計画 (PIP) の対象となった社員は、原則週 5 日出社とする。\n\n備考: 本文書はドラフトであり、法務レビューおよび代表取締役の最終承認を経ていない。正式発行は 2026年3月末を予定。現時点では v1.2 が有効なポリシーである。",
+        "metadata": {
+          "date": "2026-02-20",
+          "version": "2.0-draft",
+          "status": "draft"
+        }
+      }
+    ],
+    "question": "現在、社員は週に何日までリモートワークできるか。",
+    "gold_answer_text": "現時点で正式に有効なポリシーは v1.2 (2025-10-01 発効) であり、週 2 日が上限。ただし状況は過渡期にある。2026-01-15 の人事委員会で週 3 日への変更が賛成多数で承認されており、2026-04-01 発効予定。ドラフト v2.0 (2026-02-20) もすでに週 3 日と記載されているが、法務レビューと代表取締役の最終承認を経ておらず、正式発行されていない。したがって現在の正式ルールは週 2 日だが、4月1日以降は週 3 日に変更される見込みであり、確定した変更として扱うことはできない。",
+    "gold_answer_structured": {
+      "current_value": "週 2 日 (v1.2 -- 現行正式ポリシー)",
+      "previous_value": "週 2 日 (同じ、v1.0 以来変わらず)",
+      "reason": "週 3 日への変更は委員会で承認済みだが、正式ポリシーはまだ未発行",
+      "status_judgment": "undetermined",
+      "needs_escalation": true
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_01", "span_id": "section_2_remote_days", "role": "current_value" },
+      { "doc_id": "doc_02", "span_id": "決議", "role": "provisional_note" },
+      { "doc_id": "doc_03", "span_id": "備考_ドラフト注記", "role": "provisional_note" }
+    ],
+    "distractors": [
+      {
+        "description": "ドラフト v2.0 の週 3 日を現行ルールとして回答する",
+        "trap_value": "週 3 日",
+        "trap_source": "doc_03 (draft -- 正式未発行)"
+      },
+      {
+        "description": "議事録の承認決議を正式発効と混同して週 3 日と回答する",
+        "trap_value": "週 3 日",
+        "trap_source": "doc_02 (議事録 -- 承認はされているが発効は 2026-04-01 予定)"
+      }
+    ],
+    "expected_failure_modes": [
+      "DRAFT_AS_CURRENT: ドラフト v2.0 を現行ポリシーと誤認して週 3 日と回答",
+      "MINUTES_AS_POLICY: 議事録の承認決議を正式発効と混同して週 3 日と回答",
+      "STATUS_IGNORANCE: ドラフトステータスや発効日を確認せず最新文書の値を採用"
+    ],
+    "required_capabilities": [
+      "document_status_awareness",
+      "draft_vs_formal_distinction",
+      "temporal_reasoning",
+      "undetermined_case_handling"
+    ],
+    "evaluator_notes": "undetermined ケース。ドラフトと議事録はともに週 3 日を示しているため数の上では 2:1 で週 3 日が有利に見える。しかし正式ポリシー (v1.2) のみが法的効力を持つ。ドラフト自身の備考に『現時点では v1.2 が有効』と明記されている点が鍵。needs_escalation=true とする。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-013",
+    "type": "faq_vs_formal_spec",
+    "difficulty": "easy",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "faq",
+        "title": "情報セキュリティ FAQ -- データ保持期間 (2025-09-01)",
+        "content": "情報セキュリティ よくある質問\n更新日: 2025-09-01\n担当: 情報セキュリティ推進室\n\nQ: 会社のデータはどのくらいの期間保持されますか？\nA: データは原則として 1 年間保持されます。1 年を超えたデータは順次削除されます。業務上の疑問は情報セキュリティ推進室までお問い合わせください。\n\nQ: 退職後、自分の業務データはどうなりますか？\nA: 退職後も社内規定に従いデータは一定期間保持されます。詳細はポリシー文書をご参照ください。\n\nQ: 個人情報の削除依頼はどこに申請しますか？\nA: 個人情報保護窓口 (privacy@example.co.jp) にメールで申請してください。",
+        "metadata": {
+          "date": "2025-09-01",
+          "version": "2.1",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "current_main",
+        "title": "データ保持ポリシー 正規版 v4.0 (2025-06-01)",
+        "content": "データ保持ポリシー\nバージョン: 4.0\n発効日: 2025-06-01\n承認: 最高情報責任者 (CISO) 中村 浩二\n\n1. 目的\n本ポリシーは、当社が保有するすべてのデータの保持期間を定める。\n\n2. データ種別と保持期間\n\n2.1 業務データ (一般)\nアクティブなプロジェクトデータ: プロジェクト完了後 1 年\nアーカイブ済み業務文書: 最終更新から 1 年\n\n2.2 監査ログ\nシステムアクセスログ: 3 年\nセキュリティイベントログ: 3 年\n管理者操作ログ: 5 年\n\n2.3 個人情報 (PII)\n削除依頼受領後: 90 日以内に完全削除\n削除依頼なしの退職者データ: 退職後 2 年\n\n3. 廃棄手続き\n保持期限到来後は情報セキュリティ推進室の承認のもとデータを廃棄する。廃棄記録を 3 年保持。",
+        "metadata": {
+          "date": "2025-06-01",
+          "version": "4.0",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "supplementary",
+        "title": "社内問い合わせ メール (2026-03-10)",
+        "content": "差出人: 田口 彩 (経理部)\n宛先: 情報セキュリティ推進室\n件名: 監査ログの保持期間について\n\n来週の外部監査に備えて確認させてください。昨年の取引に関するシステムアクセスログがどの程度保持されているかを証明する必要があります。FAQ には「データは 1 年保持」とありましたが、これは監査ログにも適用されますか？\n\n---\n返信 (情報セキュリティ推進室 -- 2026-03-10):\n田口様\nお問い合わせありがとうございます。FAQ の「1 年」は一般業務データの説明であり、監査ログには適用されません。監査ログはデータ保持ポリシー v4.0 第 2.2 条により 3 年間保持されます。昨年分は問題なく存在しております。",
+        "metadata": {
+          "date": "2026-03-10",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "システムアクセスログ (監査ログ) の保持期間は何年か。",
+    "gold_answer_text": "システムアクセスログ (監査ログ) の保持期間は 3 年。正規のデータ保持ポリシー v4.0 (2025-06-01) 第 2.2 条に明記されている。FAQ の「1 年」は一般業務データの説明であり監査ログには適用されない。この点は情報セキュリティ推進室が 2026-03-10 の返信メールでも明確に説明している。",
+    "gold_answer_structured": {
+      "current_value": "3 年 (システムアクセスログ・セキュリティイベントログ)",
+      "previous_value": "不明 (v3.x 以前は文書なし)",
+      "reason": "データ保持ポリシー v4.0 第 2.2 条による",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "section_2.2_audit_log", "role": "current_value" },
+      { "doc_id": "doc_03", "span_id": "返信_監査ログ3年", "role": "reason" },
+      { "doc_id": "doc_01", "span_id": "Q_データ保持期間_1年", "role": "conflict_source" }
+    ],
+    "distractors": [
+      {
+        "description": "FAQ の簡略説明 1 年を監査ログにも適用して回答する",
+        "trap_value": "1 年",
+        "trap_source": "doc_01 (FAQ -- 一般業務データの説明)"
+      }
+    ],
+    "expected_failure_modes": [
+      "FAQ_OVER_FORMAL_SPEC: FAQ のキーワード一致が高く 1 年と回答",
+      "SCOPE_CONFUSION: FAQ の 1 年が一般業務データ向けであることを見落とす"
+    ],
+    "required_capabilities": [
+      "source_priority_judgment",
+      "scope_awareness",
+      "faq_vs_formal_distinction"
+    ],
+    "evaluator_notes": "easy ケース。FAQ はキーワード一致が高いが、内容は一般業務データの簡略説明。正式ポリシーで監査ログが別規定されていることを確認すれば正解できる。doc_03 のメール返信が補足確認として機能する。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-014",
+    "type": "table_text_inconsistency",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "製品プラン比較ページ テキスト (2025-11-30 最終更新)",
+        "content": "料金プラン\n\nEnterprise プラン\n月額: ¥200,000/月 (税抜)\n\n主な特徴:\n- ユーザー数: 無制限\n- ストレージ: 10 TB\n- API コール: 無制限\n- 99.99% SLA 保証\n- 専任カスタマーサクセスマネージャー\n- オンプレミス展開オプション\n- シングルサインオン (SSO) / SAML 2.0 対応\n- カスタム統合サポート\n- 24 時間 365 日 電話・メール優先サポート\n\n「Enterprise プランで無制限の API を活用し、業務効率を最大化しましょう。」",
+        "metadata": {
+          "date": "2025-11-30",
+          "version": "2025-11-30",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "table",
+        "title": "機能比較マトリクス v2.5 (2026-01-15)",
+        "content": "機能比較マトリクス\nバージョン: 2.5\n最終更新: 2026-01-15\n\n機能 | Starter | Professional | Enterprise\nユーザー数 | 最大 5 | 最大 50 | 無制限\nストレージ | 100 GB | 1 TB | 10 TB\nAPI コール/月 | 10,000 | 50,000 | 100,000\nSLA | 99.5% | 99.9% | 99.99%\nSSO | -- | オプション | 標準\n優先サポート | -- | メールのみ | 電話+メール\n専任 CSM | -- | -- | あり\n\n備考: v2.5 は 2026-01-15 更新。API コール数は v2.5 にて変更済み。",
+        "metadata": {
+          "date": "2026-01-15",
+          "version": "2.5",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "note",
+        "title": "リリースノート v2.5 -- 製品変更点 (2026-01-15)",
+        "content": "リリースノート v2.5\n公開日: 2026-01-15\n\n主な変更点\n\n[重要] Enterprise プラン API コール上限の変更\n変更前: 無制限\n変更後: 100,000 コール/月\n\n背景: インフラコストの急増に対応するため、Enterprise プランの API コールに 100,000/月の上限を設定します。既存 Enterprise 顧客には 2026-02-01 より適用。超過分は従量課金 (¥2/コール) となります。\n\n移行措置: 現在 100,000 コール/月を超えて利用している顧客には、個別に連絡済み。\n\n備考: マーケティングサイトのプラン比較テキストは更新対応中。最新情報は機能比較マトリクス (v2.5) を参照のこと。",
+        "metadata": {
+          "date": "2026-01-15",
+          "version": "2.5",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "Enterprise プランに含まれる API コール数は月何回か。",
+    "gold_answer_text": "Enterprise プランの API コールは月 100,000 回。機能比較マトリクス v2.5 (2026-01-15) に明記されており、リリースノート v2.5 でも v2.5 から無制限を廃止して 100,000/月 に変更したことが記載されている。製品比較ページのテキストは「無制限」と記載しているが、これは古い情報であり、リリースノートにも「マーケティングサイトは更新対応中」とある。",
+    "gold_answer_structured": {
+      "current_value": "100,000 コール/月",
+      "previous_value": "無制限 (v2.4 以前)",
+      "reason": "v2.5 (2026-01-15) でインフラコスト対応のため上限を設定",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "table_enterprise_api", "role": "current_value" },
+      { "doc_id": "doc_03", "span_id": "API_change_v2.5", "role": "reason" },
+      { "doc_id": "doc_01", "span_id": "api_unlimited_text", "role": "conflict_source" }
+    ],
+    "distractors": [
+      {
+        "description": "マーケティングページのテキスト「無制限」を現行仕様と誤認する",
+        "trap_value": "無制限",
+        "trap_source": "doc_01 (製品比較ページ -- 更新対応中)"
+      }
+    ],
+    "expected_failure_modes": [
+      "MARKETING_OVER_SPEC: 製品比較ページのテキストが読みやすく、無制限と回答",
+      "TABLE_IGNORED: テーブル形式の機能マトリクスを見落とす",
+      "RECENCY_BLIND: マーケティングページの更新日 (2025-11-30) が機能マトリクスの更新日 (2026-01-15) より古いことを確認しない"
+    ],
+    "required_capabilities": [
+      "table_vs_prose_priority",
+      "source_priority_judgment",
+      "version_resolution",
+      "cross_document_evidence"
+    ],
+    "evaluator_notes": "マーケティングテキストは「無制限」と断言しており引力が高い。機能マトリクスは表形式のため retrieval では拾われにくい場合がある。リリースノートが変更の公式記録であり、マーケティングページの未更新も明記している。",
+    "split": "test"
+  },
+  {
+    "sample_id": "PRACT-015",
+    "type": "quantity_prose_conflict",
+    "difficulty": "medium",
+    "documents": [
+      {
+        "doc_id": "doc_01",
+        "role": "current_main",
+        "title": "サーバープロビジョニングガイド v3.1 (2025-10-15)",
+        "content": "サーバープロビジョニングガイド\nバージョン: 3.1\n最終更新: 2025-10-15\n担当: インフラ基盤チーム\n\n1. VM 標準構成\n\n1.1 Standard VM\nStandard VM は中規模ワークロード向けの標準構成です。\nvCPU: 4 コア\nRAM: 16 GB\nストレージ: 200 GB SSD\nOS: Ubuntu 22.04 LTS\n\nStandard VM は開発・ステージング環境のほか、低トラフィックの本番サービスに適しています。16 GB の RAM により、一般的な Web アプリケーションやマイクロサービスを安定稼働させることができます。\n\n1.2 Premium VM\nvCPU: 8 コア\nRAM: 32 GB\nストレージ: 500 GB SSD\nOS: Ubuntu 22.04 LTS\n\nPremium VM は高負荷の本番ワークロードに推奨します。",
+        "metadata": {
+          "date": "2025-10-15",
+          "version": "3.1",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_02",
+        "role": "table",
+        "title": "VM 構成スペック一覧表 (2026-02-01 更新)",
+        "content": "VM 構成スペック一覧表\n最終更新: 2026-02-01\n管理者: インフラ基盤チーム 石田 学\n\nプラン | vCPU | RAM | ストレージ | 月額 (税抜) | 用途目安\nMicro | 1 コア | 1 GB | 20 GB SSD | ¥2,000 | 開発・検証\nSmall | 2 コア | 4 GB | 50 GB SSD | ¥5,000 | 軽量サービス\nStandard | 4 コア | 8 GB | 200 GB SSD | ¥12,000 | 開発・ステージング\nPremium | 8 コア | 16 GB | 500 GB SSD | ¥25,000 | 本番サービス\nEnterprise | 16 コア | 64 GB | 2 TB SSD | ¥80,000 | 高負荷本番",
+        "metadata": {
+          "date": "2026-02-01",
+          "version": "2026-02-01",
+          "status": "current"
+        }
+      },
+      {
+        "doc_id": "doc_03",
+        "role": "change_notice",
+        "title": "VM スペック変更通知 INC-2026-0047 (2026-01-20)",
+        "content": "変更通知 INC-2026-0047\n発行日: 2026-01-20\n発行: インフラ基盤チーム リーダー 石田 学\n承認: インフラ本部長 木村 智\n\n変更内容:\nStandard VM の RAM を変更します。\n変更前: 16 GB\n変更後: 8 GB\n\n変更理由:\nクラウドプロバイダーのコスト改定により、16 GB 構成のコストが 43% 増加。同等ユースケースは Small VM (4 GB) または Premium VM (16 GB) で代替可能。コスト最適化のため Standard VM を 8 GB に変更する。\n\n適用日: 2026-02-01\n影響範囲: 2026-02-01 以降に新規プロビジョニングする Standard VM。既存の Standard VM は影響なし (2026-06-30 まで 16 GB を維持、その後 8 GB に移行)。\n\n対応が必要なドキュメント:\n- サーバープロビジョニングガイド v3.1 (更新対応中)\n- VM 構成スペック一覧表 (2026-02-01 に更新済み)",
+        "metadata": {
+          "date": "2026-01-20",
+          "version": "1.0",
+          "status": "current"
+        }
+      }
+    ],
+    "question": "Standard VM に割り当てられる RAM は何 GB か。",
+    "gold_answer_text": "2026-02-01 以降に新規プロビジョニングする Standard VM の RAM は 8 GB。VM 構成スペック一覧表 (2026-02-01 更新) に 8 GB と記載されており、変更通知 INC-2026-0047 (2026-01-20) でも 16 GB から 8 GB への変更が確認できる。プロビジョニングガイド v3.1 (2025-10-15) では 16 GB と記載されているが、変更通知に「ガイドは更新対応中」とあり、古い情報。ただし既存の Standard VM は 2026-06-30 まで 16 GB を維持するため、既存環境は 16 GB が適用される場合がある。",
+    "gold_answer_structured": {
+      "current_value": "8 GB (新規プロビジョニング, 2026-02-01 以降)",
+      "previous_value": "16 GB (2026-01-31 以前)",
+      "reason": "クラウドコスト 43% 増加によりコスト最適化のため変更 (INC-2026-0047)",
+      "status_judgment": "confirmed",
+      "needs_escalation": false
+    },
+    "gold_evidence": [
+      { "doc_id": "doc_02", "span_id": "table_standard_ram", "role": "current_value" },
+      { "doc_id": "doc_03", "span_id": "変更内容_8GB", "role": "reason" },
+      { "doc_id": "doc_01", "span_id": "standard_vm_16gb_prose", "role": "conflict_source" }
+    ],
+    "distractors": [
+      {
+        "description": "プロビジョニングガイドの本文・説明文 16 GB を現行仕様と誤認する",
+        "trap_value": "16 GB",
+        "trap_source": "doc_01 (プロビジョニングガイド v3.1 -- 更新対応中)"
+      },
+      {
+        "description": "Premium VM の 16 GB を Standard と混同する",
+        "trap_value": "16 GB (Premium の値)",
+        "trap_source": "doc_02 (スペック一覧表の Premium 行)"
+      }
+    ],
+    "expected_failure_modes": [
+      "STALE_PROSE_OVER_TABLE: ガイド本文の 16 GB を回答。ガイドは説明文が詳細で信頼性が高く見える",
+      "TABLE_IGNORED: スペック一覧表の更新日 (2026-02-01) が最新であることを確認しない",
+      "PLAN_CONFUSION: Premium VM の 16 GB と混同して Standard を 16 GB と回答"
+    ],
+    "required_capabilities": [
+      "table_vs_prose_priority",
+      "source_recency_awareness",
+      "cross_document_evidence",
+      "exception_detection"
+    ],
+    "evaluator_notes": "プロビジョニングガイドは本文で 16 GB を 2 回言及しており (仕様列挙 + 説明文) 誘引力が高い。スペック一覧表は更新日が最新だが表形式のため retrieval で見落とされやすい。変更通知がガイドの未更新を明記している点が正解の鍵。既存 VM の経過措置 (2026-06-30 まで 16 GB) への言及が追加評価ポイント。",
+    "split": "test"
+  }
+]

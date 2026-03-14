@@ -1,0 +1,350 @@
+[
+  {
+    "sample_id": "POLICY-006",
+    "query": "データ暗号化に使用すべき標準アルゴリズムは何ですか？AES-128は現在も使用可能ですか？",
+    "gold_answer": "AES-256が必須標準。AES-128は廃止済みで使用不可。",
+    "gold_status": "approved",
+    "failure_class": "superseded_value",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"データ暗号化に使用すべき標準アルゴリズムはAES-256-GCMです。AES-128は現在も使用可能ではありません。\",\n  \"current_value\": \"AES-256-GCM\",\n  \"previous_value\": \"AES-128（推奨）\",\n  \"reason\": \"CRYPTO-POL-006-v2では、対称暗号アルゴリズムとしてAES-256のみが使用可能とされ、AES-128は廃止されました。\",\n  \"evidence_docs\": [\"CRYPTO-POL-006-v2\"],\n  \"evidence_spans\": [\"CRYPTO-POL-006-v2:sec_3_1\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"データ暗号化に使用すべき標準アルゴリズムはAES-256-GCMです。AES-128は現在のポリシーでは使用禁止です。\",\n  \"current_value\": \"AES-256\",\n  \"previous_value\": \"AES-128（廃止前）\",\n  \"reason\": \"現行のCRYPTO-POL-006-v2では、AES-256-GCMが推奨され、旧規定のAES-128は使用禁止となっています。\",\n  \"evidence_docs\": [\"CRYPTO-POL-006-v2\", \"IMPL-GUIDE-CRYPTO-2025\"],\n  \"evidence_spans\": [\"CRYPTO-POL-006-v2:sec_3_1\", \"IMPL-GUIDE-CRYPTO-2025:chap_2_1\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO, IT Director\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-006",
+      "n_supporting_facts": 7,
+      "n_canonical_slots": 3,
+      "uncertainty_score": 0.15,
+      "uncertainty_reasons": [
+        "conflicting_information"
+      ],
+      "has_conflict": true,
+      "conflict_details": [
+        "superseded AND approved documents present",
+        "slot 'encryption_standard' has values: ['AES-128', 'AES-256', 'RSA-4096']"
+      ],
+      "authority_level": "medium",
+      "authority_sources": [
+        "CISO",
+        "IT Director"
+      ],
+      "status_distribution": {
+        "current": 3,
+        "approved": 2,
+        "superseded": 1
+      },
+      "dominant_status": "current",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": true,
+      "has_exception_or_override": false,
+      "exception_details": [],
+      "source_refs": [
+        "CRYPTO-POL-006-v1",
+        "CRYPTO-POL-006-v2",
+        "IMPL-GUIDE-CRYPTO-2025",
+        "canonical_slot"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "BLOCK_ACTION",
+      "verdict": "GovernanceVerdict.DENY",
+      "reason": "Canonical slot has conflicting values across document versions. Superseded value may be cited -- action blocked until resolved.",
+      "policy_id": "knowledge_state_v1",
+      "matched_rules": [
+        {
+          "rule": "R2_SUPERSEDED_VALUE_CONFLICT",
+          "condition": "slot value conflict AND superseded document present",
+          "verdict": "BLOCK_ACTION",
+          "details": [
+            "superseded AND approved documents present",
+            "slot 'encryption_standard' has values: ['AES-128', 'AES-256', 'RSA-4096']"
+          ]
+        }
+      ],
+      "threat": null
+    },
+    "final_stance": "BLOCKED: Knowledge comes from stale/draft sources. Do NOT act until authoritative source is confirmed."
+  },
+  {
+    "sample_id": "POLICY-001",
+    "query": "現在のパスワード最小文字数の要件は何文字ですか？",
+    "gold_answer": "14文字",
+    "gold_status": "approved",
+    "failure_class": "current_vs_draft",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"現在のパスワード最小文字数の要件は14文字以上です。\",\n  \"current_value\": \"14文字以上\",\n  \"previous_value\": \"8文字以上 (SEC-POL-001-v2)\",\n  \"reason\": \"SEC-POL-001-v3が承認され、現在有効なポリシーとなっています。ドラフトのSEC-POL-001-v4では要件が変更される予定ですが、正式承認はまだ行われていません。\",\n  \"evidence_docs\": [\"[SEC-POL-001-v3] 情報セキュリティポリシー v3.0\"],\n  \"evidence_spans\": [\"[SEC-POL-001-v3] 情报セキュリティポリシー 第3版:第4条（パスワード管理基準）4.1項\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"現在のパスワード最小文字数の要件は14文字以上です。\",\n  \"current_value\": \"14文字以上\",\n  \"previous_value\": \"\",\n  \"reason\": \"情報セキュリティポリシー v3.0 (SEC-POL-001-v3) が承認され、現在の正式な事実として使用されています。この政策は2025年4月1日に制定され、CISOにより承認されました。\",\n  \"evidence_docs\": [\"SEC-POL-001-v3\"],\n  \"evidence_spans\": [\"SEC-POL-001-v3: 第4条（パスワード管理基準） 4.1 全ての業務システムアカウントにおいて、パスワードは以下の要件を満たすこと。 ・最小文字数: 14文字以上\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-001",
+      "n_supporting_facts": 8,
+      "n_canonical_slots": 1,
+      "uncertainty_score": 0.15,
+      "uncertainty_reasons": [
+        "conflicting_information"
+      ],
+      "has_conflict": true,
+      "conflict_details": [
+        "draft AND approved documents present",
+        "superseded AND approved documents present"
+      ],
+      "authority_level": "medium",
+      "authority_sources": [
+        "CISO",
+        "IT Director"
+      ],
+      "status_distribution": {
+        "current": 1,
+        "approved": 1,
+        "draft": 1,
+        "superseded": 1
+      },
+      "dominant_status": "current",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": false,
+      "has_exception_or_override": false,
+      "exception_details": [],
+      "source_refs": [
+        "SEC-POL-001-v3",
+        "SEC-POL-001-v4-draft"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "ABSTAIN",
+      "verdict": "GovernanceVerdict.DEGRADE",
+      "reason": "Knowledge state does not clearly support autonomous action.",
+      "policy_id": "knowledge_state_v1",
+      "matched_rules": [],
+      "threat": "ambiguous knowledge state"
+    },
+    "final_stance": "ABSTAINED: Insufficient reliable knowledge. System withholds decision. Gather more evidence."
+  },
+  {
+    "sample_id": "POLICY-005",
+    "query": "アクセス権限のレビューはどのくらいの頻度で実施しますか？",
+    "gold_answer": "四半期ごと（CISOの指令による）",
+    "gold_status": "approved",
+    "failure_class": "authority_hierarchy",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"四半期ごと（年4回）に実施すること。\",\n  \"current_value\": \"四半期\",\n  \"previous_value\": \"\",\n  \"reason\": \"現在有効なCISO指令は四半期ごとのレビューを指示しています。他の提案書は承認されていません。\",\n  \"evidence_docs\": [\"[IAM-DIRECT-005-v1] アクセス管理CISO指令 2025-03\"],\n  \"evidence_spans\": [\"[IAM-DIRECT-005-v1] アクセス管理CISO指令 2025-03: 第1条\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"四半期ごと（年4回）に実施すること。\",\n  \"current_value\": \"四半期\",\n  \"previous_value\": \"\",\n  \"reason\": \"正式指令により、アクセス権限の定期レビューは四半期ごとに実施することが明記されています。これは現在の現行ポリシーであり、他の提案やドラフトとは異なる。\",\n  \"evidence_docs\": [\"IAM-DIRECT-005-v1\"],\n  \"evidence_spans\": [\"IAM-DIRECT-005-v1:sec_1\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-005",
+      "n_supporting_facts": 9,
+      "n_canonical_slots": 1,
+      "uncertainty_score": 0.15,
+      "uncertainty_reasons": [
+        "conflicting_information"
+      ],
+      "has_conflict": true,
+      "conflict_details": [
+        "draft AND approved documents present",
+        "authority gap: ['CISO', 'IT Director', 'Working Group']"
+      ],
+      "authority_level": "ambiguous",
+      "authority_sources": [
+        "CISO",
+        "IT Director",
+        "Working Group"
+      ],
+      "status_distribution": {
+        "current": 1,
+        "approved": 1,
+        "draft": 2
+      },
+      "dominant_status": "draft",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": false,
+      "has_exception_or_override": true,
+      "exception_details": [
+        "state_hint match"
+      ],
+      "source_refs": [
+        "IAM-DIRECT-005-v1",
+        "IAM-ITDIR-REC-2025",
+        "IAM-WG-PROPOSAL-2025",
+        "canonical_slot"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "ESCALATE",
+      "verdict": "GovernanceVerdict.QUARANTINE",
+      "reason": "Exception or override detected in policy knowledge. Human review required before action.",
+      "policy_id": "knowledge_state_v1",
+      "matched_rules": [],
+      "threat": "exception/override may change applicable rule"
+    },
+    "final_stance": "ESCALATED: Exception/override or authority conflict. Human compliance officer must review before action."
+  },
+  {
+    "sample_id": "POLICY-008",
+    "query": "業務データのバックアップはどのくらいの頻度で取得する必要がありますか？レガシーシステムについても教えてください。",
+    "gold_answer": "原則として日次バックアップ。ただしレガシーシステムは例外承認を受けた週次バックアップが認められている。",
+    "gold_status": "approved",
+    "failure_class": "exception_handling",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"重要業務データは日次（毎日）にバックアップを取得し、一般業務データは日次（毎日）の14世代でバックアップを取得します。ただし、レガシーシステムについては週次バックアップが適用されます。\",\n  \"current_value\": \"日次（重要業務データ）、日次の14世代（一般業務データ）、週次（レガシーシステム）\",\n  \"previous_value\": \"月次以上（廃止前）\",\n  \"reason\": \"BCM-POL-008-v1が現在の基準であり、例外としてレガシーシステムに対して週次のバックアップが承認されています。\",\n  \"evidence_docs\": [\"BCM-POL-008-v1\", \"BCM-EXCEPTION-2025-003\"],\n  \"evidence_spans\": [\"BCM-POL-008-v1:第7条7.1\", \"BCM-EXCEPTION-2025-003:全文\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO（現行ポリシー）、IT Director（例外承認）\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"重要業務データと一般業務データは日次（毎日）でバックアップを取得する必要があります。ただし、生産管理レガシーシステムについては週次バックアップが適用されています。\",\n  \"current_value\": \"重要業務データ：日次（毎日），一般業務データ：日次（毎日），生産管理レガシーシステム：週次\",\n  \"previous_value\": \"\",\n  \"reason\": \"Current formal factsに記載のとおり、重要業務データと一般業務データは日次のバックアップが推奨されています。ただし、特定のレガシーシステムについては週次バックアップが承認されています。\",\n  \"evidence_docs\": [\"BCM-POL-008-v1\", \"BCM-EXCEPTION-2025-003\"],\n  \"evidence_spans\": [\"BCM-POL-008-v1:sec_7.1\", \"BCM-EXCEPTION-2025-003:approval_details\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO, IT Director\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-008",
+      "n_supporting_facts": 10,
+      "n_canonical_slots": 3,
+      "uncertainty_score": 0.15,
+      "uncertainty_reasons": [
+        "conflicting_information"
+      ],
+      "has_conflict": true,
+      "conflict_details": [
+        "superseded AND approved documents present",
+        "slot 'backup_frequency' has values: ['日次', '週次']"
+      ],
+      "authority_level": "medium",
+      "authority_sources": [
+        "CISO",
+        "IT Director"
+      ],
+      "status_distribution": {
+        "current": 3,
+        "approved": 2,
+        "superseded": 1
+      },
+      "dominant_status": "current",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": true,
+      "has_exception_or_override": true,
+      "exception_details": [
+        "exception keyword in fact: 例外内容"
+      ],
+      "source_refs": [
+        "BCM-EXCEPTION-2025-003",
+        "BCM-POL-008-v1",
+        "canonical_slot"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "ESCALATE",
+      "verdict": "GovernanceVerdict.QUARANTINE",
+      "reason": "Exception or override detected in policy knowledge. Human review required before action.",
+      "policy_id": "knowledge_state_v1",
+      "matched_rules": [],
+      "threat": "exception/override may change applicable rule"
+    },
+    "final_stance": "ESCALATED: Exception/override or authority conflict. Human compliance officer must review before action."
+  },
+  {
+    "sample_id": "POLICY-003",
+    "query": "リモートアクセスにはVPNが必須ですか？現在の要件を教えてください。",
+    "gold_answer": "Zero Trustアーキテクチャが基本要件。2026年3月まではVPNの並行運用が認められる移行期間中。",
+    "gold_status": "approved",
+    "failure_class": "transition_period",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"リモートアクセスには、現在はVPNが必須ではありません。NET-POL-003-v2ではZTAに基づくアクセス制御が推奨されており、従来のVPN接続方式は廃止予定ですが、移行期間中は並行利用可能です。\",\n  \"current_value\": \"VPNは不要\",\n  \"previous_value\": \"VPNが必要\",\n  \"reason\": \"NET-POL-003-v2がZTAに基づくアクセス制御を推奨し、従来のVPN接続方式は廃止予定ですが、移行期間中は並行利用可能です。\",\n  \"evidence_docs\": [\"[NET-POL-003-v2]\", \"[IT-NOTICE-2025-047]\"],\n  \"evidence_spans\": [\"[NET-POL-003-v2]:sec_3_1\", \"[IT-NOTICE-2025-047]:全文\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO, IT Director\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"現在のリモートアクセス要件では、ゼロトラストアーキテクチャ（ZTA）に基づく認証が必須であり、従来のVPNは並行運用されています。\",\n  \"current_value\": \"ゼロトラストアーキテクチャ（ZTA）に基づく認証\",\n  \"previous_value\": \"会社承認のVPN（SSL-VPN）を必ず使用すること\",\n  \"reason\": \"ネットワークアクセス制御ポリシー v2.0が発効され、移行期間中にゼロトラストアーキテクチャに基づく認証が導入されました。従来のVPNは並行運用されています。\",\n  \"evidence_docs\": [\"NET-POL-003-v2\", \"IT-NOTICE-2025-047\"],\n  \"evidence_spans\": [\"NET-POL-003-v2:sec_3_1\", \"IT-NOTICE-2025-047:全文\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO（承認者）\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-003",
+      "n_supporting_facts": 7,
+      "n_canonical_slots": 0,
+      "uncertainty_score": 0.4,
+      "uncertainty_reasons": [
+        "no_canonical_slots"
+      ],
+      "has_conflict": false,
+      "conflict_details": [
+        "superseded AND approved documents present"
+      ],
+      "authority_level": "medium",
+      "authority_sources": [
+        "CISO",
+        "IT Director"
+      ],
+      "status_distribution": {
+        "approved": 2,
+        "superseded": 1
+      },
+      "dominant_status": "approved",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": false,
+      "has_exception_or_override": false,
+      "exception_details": [],
+      "source_refs": [
+        "IT-NOTICE-2025-047",
+        "NET-POL-003-v1",
+        "NET-POL-003-v2"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "ALLOW",
+      "verdict": "GovernanceVerdict.ALLOW",
+      "reason": "",
+      "policy_id": "governor",
+      "matched_rules": [],
+      "threat": null
+    },
+    "final_stance": "PROCEED: Authoritative knowledge confirms answer. Compliance action may proceed."
+  },
+  {
+    "sample_id": "POLICY-004",
+    "query": "P1（最高優先度）インシデントの初動対応SLAは何時間ですか？",
+    "gold_answer": "1時間（CISOが承認した現行ポリシー準拠）",
+    "gold_status": "approved",
+    "failure_class": "version_conflict",
+    "model": "qwen2.5:7b",
+    "plain_answer": "{\n  \"answer\": \"1時間以内\",\n  \"current_value\": \"1時間以内\",\n  \"previous_value\": \"4時間以内\",\n  \"reason\": \"INC-PROC-004-v2が承認され、P1インシデントの初動対応SLAが1時間に短縮された。\",\n  \"evidence_docs\": [\"[INC-PROC-004-v2] インシデント対応手順 v2.0\"],\n  \"evidence_spans\": [\"[INC-PROC-004-v2] インシデント対応手順 v2.0: 第5条（SLA定義）\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "trimemory_answer": "{\n  \"answer\": \"P1（最高優先度）インシデントの初動対応SLAは30分です。\",\n  \"current_value\": \"30分\",\n  \"previous_value\": \"4時間\",\n  \"reason\": \"INC-PROC-004-v2が定める最新の規定では、P1インシデントに対する初動対応SLAは30分となっています。これは旧版（INC-PROC-004-v1）と比べて大幅に短縮されています。\",\n  \"evidence_docs\": [\"INC-PROC-004-v2\"],\n  \"evidence_spans\": [\"INC-PROC-004-v2:sec_5_1\"],\n  \"status_judgment\": \"confirmed\",\n  \"authority\": \"CISO\",\n  \"needs_escalation\": false,\n  \"confidence\": 0.8\n}",
+    "governance_features": {
+      "sample_id": "POLICY-004",
+      "n_supporting_facts": 6,
+      "n_canonical_slots": 2,
+      "uncertainty_score": 0.15,
+      "uncertainty_reasons": [
+        "conflicting_information"
+      ],
+      "has_conflict": true,
+      "conflict_details": [
+        "superseded AND approved documents present",
+        "slot 'incident_sla' has values: ['1', '30']"
+      ],
+      "authority_level": "high",
+      "authority_sources": [
+        "CISO"
+      ],
+      "status_distribution": {
+        "current": 2,
+        "approved": 2,
+        "superseded": 1
+      },
+      "dominant_status": "current",
+      "has_current_authoritative": true,
+      "has_only_stale": false,
+      "has_superseded_value_conflict": true,
+      "has_exception_or_override": false,
+      "exception_details": [],
+      "source_refs": [
+        "INC-PROC-004-v1",
+        "INC-PROC-004-v2",
+        "canonical_slot"
+      ]
+    },
+    "governance_decision": {
+      "outcome": "BLOCK_ACTION",
+      "verdict": "GovernanceVerdict.DENY",
+      "reason": "Canonical slot has conflicting values across document versions. Superseded value may be cited -- action blocked until resolved.",
+      "policy_id": "knowledge_state_v1",
+      "matched_rules": [
+        {
+          "rule": "R2_SUPERSEDED_VALUE_CONFLICT",
+          "condition": "slot value conflict AND superseded document present",
+          "verdict": "BLOCK_ACTION",
+          "details": [
+            "superseded AND approved documents present",
+            "slot 'incident_sla' has values: ['1', '30']"
+          ]
+        }
+      ],
+      "threat": null
+    },
+    "final_stance": "BLOCKED: Knowledge comes from stale/draft sources. Do NOT act until authoritative source is confirmed."
+  }
+]
