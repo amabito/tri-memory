@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *.so
@@ -5,10 +6,10 @@ __pycache__/
 dist/
 build/
 .eggs/
-
 .venv/
 venv/
 
+# Data / checkpoints
 *.npy
 *.bin
 scripts/data/
@@ -16,14 +17,71 @@ scripts/results/
 bench_results/
 checkpoints/
 
+# Tool caches
 .pytest_cache/
 .ruff_cache/
 
+# Editor / OS
 *.swp
 *.swo
 *~
 .DS_Store
 Thumbs.db
 
+# Session artifacts
 .jarvis/
 .archive/
+
+# Script output logs (tracked historically, now excluded)
+*_err.txt
+*_out.txt
+verify_random_targets_err.txt
+verify_random_targets_out.txt
+
+# Experiment artifacts (keep phase31/32/40 launch-relevant dirs)
+artifacts/alpha_floor_sweep/
+artifacts/b_collapse_trace/
+artifacts/d_collapse_*/
+artifacts/docbench_*/
+artifacts/e1_*/
+artifacts/e2_*/
+artifacts/e3_*/
+artifacts/gate_bias_verify/
+artifacts/gate_lr_mult_verify/
+artifacts/logs/
+artifacts/logspace_cumprod_verify/
+artifacts/option_b_verify/
+artifacts/option_c1_verify/
+artifacts/perf/
+artifacts/perf_test/
+artifacts/phase301_*/
+artifacts/phase30_transfer/
+artifacts/phase7/
+artifacts/seed_independence_test/
+artifacts/taskA_*/
+artifacts/taskC_*/
+artifacts/tri_memory_*_temp.py
+artifacts/trimemory/
+artifacts/trimemory_*/
+artifacts/trn_*/
+artifacts/v[0-9]*/
+
+# One-off experiment scripts (keep core scripts)
+scripts/run_v[0-9]*.py
+scripts/run_e[0-9]*.py
+scripts/run_fix*.py
+scripts/run_task*.py
+scripts/run_trimemory_v[0-9]*.py
+scripts/run_seed*.py
+scripts/run_gtmc_experiment.py
+scripts/run_ablation_*.py
+scripts/sweep_*.py
+scripts/trace_*.py
+scripts/verify_v[0-9]*.py
+scripts/verify_gate_*.py
+scripts/verify_logspace_*.py
+scripts/verify_option_*.py
+scripts/compute_v5_verdict.py
+scripts/gen_copy_tf_reference.py
+scripts/phase211_benchmark.py
+scripts/phase29_error_analysis.py
