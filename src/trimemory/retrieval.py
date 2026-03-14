@@ -161,6 +161,9 @@ class RetrievalIndex:
         if not self._chunks:
             return [], []
 
+        # Convert deque to list for O(1) index access during scoring
+        chunks_snapshot = list(self._chunks)
+
         query_bag = self._make_token_bag(query_token_ids)
         use_hidden = mode in ("hidden", "hybrid") and query_hidden is not None
         use_bag = mode in ("bag", "hybrid")
@@ -170,7 +173,7 @@ class RetrievalIndex:
             use_bag = True
 
         scored: list[tuple[float, float, float, int]] = []
-        for idx, chunk in enumerate(self._chunks):
+        for idx, chunk in enumerate(chunks_snapshot):
             h_score = 0.0
             b_score = 0.0
             if use_hidden:
@@ -190,7 +193,7 @@ class RetrievalIndex:
 
         scored.sort(key=lambda x: x[0], reverse=True)
         top = scored[:top_k]
-        results = [self._chunks[idx] for _, _, _, idx in top]
+        results = [chunks_snapshot[idx] for _, _, _, idx in top]
         score_dicts = [
             {"hidden_score": hs, "bag_score": bs, "combined_score": cs}
             for cs, hs, bs, _ in top
@@ -205,7 +208,7 @@ class RetrievalIndex:
         top_k: int = 4,
     ) -> list[ChunkRecord]:
         """Filter chunks by metadata fields."""
-        candidates = self._chunks
+        candidates: list[ChunkRecord] = list(self._chunks)
         if tool_name:
             candidates = [c for c in candidates if c.tool_name == tool_name]
         if entity_tag:

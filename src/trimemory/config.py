@@ -23,7 +23,7 @@ class TRNConfig:
     amplitude_max:       float = 3.0     # softplus clamp ceiling (was 10.0)
     state_norm:          bool  = True    # per-channel max-abs normalization after state update
     res_scale_init:      float = 0.05    # learnable resonance output scale initial value
-    gate_bias_init:      float = 0.85    # sigmoid(bias) target for alpha init (~0.6-0.75)
+    gate_bias_init:      float = 0.65    # sigmoid(0.619) ~ 0.65; P0 stabilization default
     phase_mode:          str   = "log"   # "log" = omega*log(i+1), "linear" = omega*i
     scan_chunk_size:     int   = 16     # chunk size for chunked_resonance_scan
 

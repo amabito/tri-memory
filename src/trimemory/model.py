@@ -70,9 +70,12 @@ class TRNModel(nn.Module):
             # Causal shift: predict token at position t using tokens 0..t-1.
             shift_logits = logits[:, :-1].contiguous()
             shift_labels = labels[:, 1:].contiguous()
+            # ignore_index=-100: positions with label=-100 are excluded from loss.
+            # PackedDataset should set padding labels to -100 if padding occurs.
             result["loss"] = nn.functional.cross_entropy(
                 shift_logits.view(-1, self.cfg.vocab_size),
                 shift_labels.view(-1),
+                ignore_index=-100,
             )
 
         return result

@@ -79,7 +79,7 @@ class SaliencyArchiver:
 
         if n > 1:
             t_tensor = torch.tensor(token_ids, dtype=torch.float32)
-            variance_score = min(1.0, t_tensor.std().item() / (self.vocab_size / 4))
+            variance_score = min(1.0, t_tensor.std(correction=0).item() / (self.vocab_size / 4))
         else:
             variance_score = 0.0
 
@@ -191,7 +191,7 @@ class GoalAwareSaliencyArchiver:
         # Token variance
         if n > 1:
             t_tensor = torch.tensor(token_ids, dtype=torch.float32)
-            variance_score = min(1.0, t_tensor.std().item() / (self.vocab_size / 4))
+            variance_score = min(1.0, t_tensor.std(correction=0).item() / (self.vocab_size / 4))
         else:
             variance_score = 0.0
 
@@ -245,5 +245,5 @@ class GoalAwareSaliencyArchiver:
         threshold = self.threshold
         if goal_state is not None:
             threshold += self._scorer.retrieval_threshold_adjustment(goal_state)
-            threshold = max(0.1, threshold)  # floor
+        threshold = max(0.1, threshold)  # floor always applied
         return score >= threshold

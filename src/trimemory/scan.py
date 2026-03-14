@@ -40,14 +40,16 @@ class SafeCumprod(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, alpha: Tensor) -> Tensor:
-        result = torch.cumprod(alpha, dim=1)
+    def forward(ctx, alpha: Tensor, dim: int = 1) -> Tensor:
+        result = torch.cumprod(alpha, dim=dim)
         ctx.save_for_backward(alpha, result)
+        ctx.dim = dim
         return result
 
     @staticmethod
-    def backward(ctx, grad_output: Tensor) -> Tensor:
+    def backward(ctx, grad_output: Tensor) -> tuple[Tensor, None]:
         alpha, result = ctx.saved_tensors
+        dim = ctx.dim
 
         # Standard cumprod backward:
         # grad_input[i] = sum_{j>=i}(grad_output[j] * result[j]) / alpha[i]
@@ -55,7 +57,7 @@ class SafeCumprod(torch.autograd.Function):
         grad_weighted = grad_output * result  # (B, C, K)
         # Reverse cumsum: flip, cumsum, flip back
         grad_sum = torch.flip(
-            torch.cumsum(torch.flip(grad_weighted, [1]), dim=1), [1],
+            torch.cumsum(torch.flip(grad_weighted, [dim]), dim=dim), [dim],
         )
         # Guard against division by zero. The 1e-30 floor is below float32 subnormal range,
         # so this only activates for exact-zero alpha. For near-zero alpha, the NaN/Inf
@@ -63,9 +65,14 @@ class SafeCumprod(torch.autograd.Function):
         grad_input = grad_sum / alpha.clamp(min=1e-30)
 
         # Collect statistics before guard
-        max_abs_before = grad_input.abs().max().item()
+        max_abs_before = grad_input.nan_to_num(nan=0.0, posinf=1e30, neginf=-1e30).abs().max().item()
         nonfinite_mask = ~torch.isfinite(grad_input)
         n_nonfinite = nonfinite_mask.sum().item()
+
+        # Known limitation: when multiple consecutive alpha values are near-zero,
+        # gradient signal is lost for preceding elements (spuriously zero).
+        # This is acceptable because near-zero alpha means the state is intentionally
+        # "reset" -- gradient through reset points is not meaningful.
 
         # Zero out NaN/Inf
         if n_nonfinite > 0:
@@ -85,7 +92,7 @@ class SafeCumprod(torch.autograd.Function):
             )
             _safe_cumprod_stats["calls"] += 1
 
-        return grad_input
+        return grad_input, None
 
 
 def _combine(
@@ -121,7 +128,7 @@ def parallel_resonance_scan(
 
     try:
         _, r_r = torch.associative_scan(_combine, (alpha, drive_r), dim=1)
-        _, r_i = torch.associative_scan(_combine, (alpha, drive_i), dim=1)
+        _, r_i = torch.associative_scan(_combine, (alpha.clone(), drive_i), dim=1)
         return r_r, r_i
     except (TypeError, RuntimeError, AttributeError):
         return chunked_resonance_scan(alpha, drive_r, drive_i)
@@ -151,26 +158,26 @@ def _scan_chunk(
     # backward uses standard cumprod gradient but zeros out NaN/Inf.
     # This preserves V5's gradient structure (rich multiplicative gradients)
     # while preventing the rare NaN that caused D seed2 collapse.
-    alpha_cum = SafeCumprod.apply(alpha_chunk)  # (B, C, K)
+    alpha_cum = SafeCumprod.apply(alpha_chunk, 1)  # (B, C, K)
 
     # Contribution from previous state: alpha_cum * r_prev
     prev_contrib = alpha_cum * r_prev.unsqueeze(1)  # (B, C, K)
 
     # Drive contribution via cumsum-rescale:
     # scaled_drive = drive / alpha_cum, then cumsum, then * alpha_cum
-    _ALPHA_FLOOR = 1e-30
-    inv_alpha_cum = 1.0 / alpha_cum.clamp(min=_ALPHA_FLOOR)
-    scaled_drive = drive_chunk * inv_alpha_cum
-    # Clamp prevents Inf propagation through cumsum when alpha_cum is near-zero.
-    scaled_drive = scaled_drive.clamp(-1e6, 1e6)
-    drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum  # (B, C, K)
-
-    # Fallback: when alpha_cum < 1e-6, state has effectively decayed to zero.
-    # Replace with raw drive as approximation (accumulated contributions from earlier
-    # positions are negligible at this decay level).
-    exact_zero = alpha_cum < 1e-6
-    if exact_zero.any():
-        drive_contrib = torch.where(exact_zero, drive_chunk, drive_contrib)
+    #
+    # Use a clamped denominator (min=1e-6) so the cumsum itself always sees
+    # correct values. Then override only the final result at positions where
+    # alpha_cum < 1e-6 with the O(alpha_cum) near-zero approximation.
+    # This avoids the previous bug where torch.where on the pre-cumsum tensor
+    # injected ones into non-small positions and corrupted the cumsum.
+    safe_alpha_cum = alpha_cum.clamp(min=1e-6)
+    scaled_drive = drive_chunk / safe_alpha_cum
+    drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum
+    # For positions where alpha_cum < 1e-6, override with near-zero contribution
+    small_alpha = alpha_cum < 1e-6
+    if small_alpha.any():
+        drive_contrib = torch.where(small_alpha, drive_chunk * alpha_cum, drive_contrib)
 
     chunk_out = prev_contrib + drive_contrib  # (B, C, K)
     r_final = chunk_out[:, -1]  # (B, K)

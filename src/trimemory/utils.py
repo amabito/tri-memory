@@ -38,8 +38,8 @@ def build_sinusoidal_pe(max_len: int, d_model: int) -> Tensor:
     div_term = torch.exp(
         torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
     )
-    pe[:, 0::2] = torch.sin(position * div_term)
-    pe[:, 1::2] = torch.cos(position * div_term)
+    pe[:, 0::2] = torch.sin(position * div_term[:pe[:, 0::2].size(1)])
+    pe[:, 1::2] = torch.cos(position * div_term[:pe[:, 1::2].size(1)])
     return pe
 
 

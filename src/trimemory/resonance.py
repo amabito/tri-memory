@@ -67,9 +67,14 @@ class TemporalResonanceLayer(nn.Module):
         self.res_scale = nn.Parameter(torch.tensor(res_scale_init))
 
     def _apply_state_norm(self, r_r: Tensor, r_i: Tensor) -> tuple[Tensor, Tensor]:
-        """Per-channel max-abs normalization: r /= max(max_abs(r), 1.0)."""
-        max_abs = torch.maximum(r_r.abs(), r_i.abs())  # (B, n, K) or (B, K)
-        scale = max_abs.clamp(min=1.0)
+        """Complex modulus normalization: r /= max(|r|, 1.0).
+
+        Uses the true complex modulus sqrt(r_r^2 + r_i^2) rather than the
+        old max-abs approximation. This preserves the phase of the complex
+        state while preventing magnitude from exceeding 1.0.
+        """
+        modulus = (r_r.pow(2) + r_i.pow(2) + 1e-8).sqrt()
+        scale = modulus.clamp(min=1.0)
         return r_r / scale, r_i / scale
 
     def _compute_positions(self, n: int, device: torch.device) -> Tensor:
@@ -94,17 +99,22 @@ class TemporalResonanceLayer(nn.Module):
         positions = self._compute_positions(n, device)
         angle = omega * positions + phi  # (B, n, K)
 
-        one_m_a = 1.0 - alpha
-
-        # Cast to fp32 before scan -- critical for mixed-precision training.
-        cos_angle = torch.cos(angle)
-        sin_angle = torch.sin(angle)
-        alpha_f  = alpha.float()
-        drive_r  = (one_m_a * A * cos_angle).float()
-        drive_i  = (one_m_a * A * sin_angle).float()
+        # Move alpha to fp32 before computing one_m_a to prevent bf16 latch:
+        # in bf16, values close to 1.0 (e.g. 0.99) round to 1.0, which causes
+        # the decay gate to become a latch and kills gradient flow.
+        alpha_f = alpha.float()
+        one_m_a = 1.0 - alpha_f
+        cos_angle = torch.cos(angle).float()
+        sin_angle = torch.sin(angle).float()
+        A_f = A.float()
+        drive_r = one_m_a * A_f * cos_angle
+        drive_i = one_m_a * A_f * sin_angle
 
         # Disable AMP inside the scan to enforce fp32 arithmetic.
-        with torch.amp.autocast("cuda", enabled=False):
+        # device_type covers both cuda and cpu paths so autocast is a no-op on CPU
+        # (avoids the "cuda autocast on CPU tensor" warning).
+        device_type = "cuda" if x.is_cuda else "cpu"
+        with torch.amp.autocast(device_type, enabled=False):
             if self.use_parallel_scan and x.is_cuda:
                 r_r, r_i = parallel_resonance_scan(alpha_f, drive_r, drive_i)
             else:
@@ -179,14 +189,14 @@ class TemporalResonanceLayer(nn.Module):
             pos = math.log1p(pos)
         angle = omega_t * pos + phi_t  # (B, K)
 
-        one_m_a = 1.0 - alpha_t
+        alpha_f = alpha_t.float()
+        one_m_a = 1.0 - alpha_f
         cos_angle = torch.cos(angle)
         sin_angle = torch.sin(angle)
-        v_r = (one_m_a * A_t * cos_angle).float()
-        v_i = (one_m_a * A_t * sin_angle).float()
+        v_r = (one_m_a * A_t.float() * cos_angle.float())
+        v_i = (one_m_a * A_t.float() * sin_angle.float())
 
         # State update in fp32.
-        alpha_f = alpha_t.float()
         r_real  = alpha_f * r_real + v_r
         r_imag  = alpha_f * r_imag + v_i
 
@@ -198,6 +208,13 @@ class TemporalResonanceLayer(nn.Module):
         # afterwards. Normalizing the carried state here would feed normalized
         # values back into the next recurrence step, making inference
         # mathematically different from training (max-abs norm is nonlinear).
+        #
+        # NOTE: Training applies _apply_state_norm per-element across the full
+        # sequence (B, n, K), while inference applies it per-step (B, K).
+        # The normalization scale differs: training uses per-position modulus,
+        # inference also uses per-position (B, K) modulus. These ARE equivalent
+        # when the norm is applied element-wise (which it is after the H2 fix
+        # using complex modulus). No mismatch exists with per-element normalization.
         if self.state_norm_enabled:
             r_real_demod, r_imag_demod = self._apply_state_norm(r_real, r_imag)
         else:

@@ -85,15 +85,23 @@ class HybridModel(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        # Accept either a ratio in [0, 1] or a raw integer count of TRN layers.
-        if isinstance(trn_ratio, int) or trn_ratio >= 1.0:
-            n_trn = int(trn_ratio)
-            assert 0 <= n_trn <= cfg.n_layers, (
-                f"trn_ratio as int must be in [0, n_layers={cfg.n_layers}], got {n_trn}"
-            )
+        if cfg.n_layers < 1:
+            raise ValueError(f"cfg.n_layers must be >= 1, got {cfg.n_layers}")
+
+        # Accept either an integer count or a float ratio in [0.0, 1.0].
+        # C5 fix: isinstance(bool, int) is True in Python, so exclude bool explicitly.
+        # The old check `trn_ratio >= 1.0` incorrectly treated 1.0 (float, pure TRN)
+        # as an integer count of 1 layer instead of 100% TRN.
+        if isinstance(trn_ratio, int) and not isinstance(trn_ratio, bool):
+            # Integer: absolute count of TRN layers
+            n_trn = trn_ratio
+            if not (0 <= n_trn <= cfg.n_layers):
+                raise ValueError(f"n_trn={n_trn} out of range [0, {cfg.n_layers}]")
             self.trn_ratio = n_trn / cfg.n_layers if cfg.n_layers > 0 else 0.0
         else:
-            assert 0.0 <= trn_ratio <= 1.0, "trn_ratio must be in [0, 1]"
+            # Float ratio in [0.0, 1.0]
+            if not (0.0 <= trn_ratio <= 1.0):
+                raise ValueError(f"trn_ratio={trn_ratio} out of range [0.0, 1.0]")
             self.trn_ratio = float(trn_ratio)
             n_trn = round(cfg.n_layers * trn_ratio)
         # Interleave: TRN layers spread as evenly as possible

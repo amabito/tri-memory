@@ -155,6 +155,10 @@ class ReplayConsolidator:
 
         Returns:
             ConsolidationStats with consolidation metrics.
+
+        # WARNING: This method mutates ChunkRecord.saliency in-place on shared objects.
+        # Not thread-safe -- callers must ensure exclusive access to the RetrievalIndex
+        # during consolidation.
         """
         if len(index) == 0:
             return ConsolidationStats(

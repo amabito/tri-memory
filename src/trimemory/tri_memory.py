@@ -57,6 +57,7 @@ from trimemory.utils import build_rms_norm, build_sinusoidal_pe
 # StateTokenAdapter: TRN state -> pseudo memory tokens
 # ---------------------------------------------------------------------------
 
+# Currently unused in TriMemoryEngine.forward() -- available for custom pipelines.
 class StateTokenAdapter(nn.Module):
     """Projects TRN resonance state into m attention-compatible state tokens.
 
@@ -283,6 +284,9 @@ class TriMemoryBlock(nn.Module):
                 v_full = torch.cat([v_ret, v], dim=2)
                 # Mask: prefix columns = 0 (always attend), sequence columns = window mask
                 window_mask = self._make_window_mask(T, self.window_size, x.device)  # (T, T)
+                # NOTE: All query positions attend to all retrieval prefix tokens (no causal
+                # masking on prefix). This is intentional -- retrieved context is treated as
+                # static knowledge accessible from any position, not as sequential input.
                 prefix_mask = torch.zeros(T, R, device=x.device)  # all Q attend to all prefix
                 full_mask = torch.cat([prefix_mask, window_mask], dim=1)  # (T, R+T)
                 attn_out = F.scaled_dot_product_attention(q, k_full, v_full, attn_mask=full_mask)
@@ -310,15 +314,16 @@ class TriMemoryBlock(nn.Module):
             ret_out = torch.zeros_like(attn_out)
 
         # 3-way gated sum with masking for disabled paths
+        # NOTE: gate_logits are computed from pre-norm h, while trn_out has an
+        # additional trn_out_norm applied. This asymmetry is intentional -- the gate
+        # sees the pre-attention representation, while TRN output is separately normalized.
         gate_logits = self.gate_proj(h)  # (B, T, 3)
-        if not self.enable_trn:
+        if not self.enable_trn or not self.enable_retrieval:
             gate_logits = gate_logits.clone()
-            # Use -1e4 (safe for fp16 range +-65504) instead of -1e9
-            gate_logits[:, :, 1] = -1e4
-        if not self.enable_retrieval:
-            gate_logits = gate_logits.clone()
-            # Use -1e4 (safe for fp16 range +-65504) instead of -1e9
-            gate_logits[:, :, 2] = -1e4
+            if not self.enable_trn:
+                gate_logits[:, :, 1] = torch.finfo(gate_logits.dtype).min
+            if not self.enable_retrieval:
+                gate_logits[:, :, 2] = torch.finfo(gate_logits.dtype).min
         gates = torch.softmax(gate_logits, dim=-1)  # (B, T, 3)
         g_kv = gates[:, :, 0:1]    # (B, T, 1)
         g_trn = gates[:, :, 1:2]
@@ -377,6 +382,10 @@ class TriMemoryEngine(nn.Module):
         prefer_current: bool = True,
     ) -> None:
         super().__init__()
+        # C3: W=0 guard -- window_size=0 causes empty attention windows (all -inf mask)
+        if window_size < 1:
+            raise ValueError(f"window_size must be >= 1, got {window_size}")
+
         self.cfg = cfg
         self.window_size = window_size
         self.chunk_size = chunk_size
@@ -385,6 +394,7 @@ class TriMemoryEngine(nn.Module):
         self.enable_trn = enable_trn
         self.enable_retrieval = enable_retrieval
         self.search_mode = search_mode
+        self._batch_warned: bool = False
         self.search_w_hidden = search_w_hidden
         self.search_w_bag = search_w_bag
 
@@ -429,13 +439,11 @@ class TriMemoryEngine(nn.Module):
         # Copy-mix alpha: learnable scalar for mixing copy logits into main logits
         self.copy_mix_alpha = nn.Parameter(torch.tensor(2.0))
 
-        # StateTokenAdapter
-        self.state_adapter = StateTokenAdapter(
-            n_layers=cfg.n_layers,
-            K=cfg.n_oscillators,
-            d_model=cfg.d_model,
-            m=state_tokens_m,
-        )
+        # C4: StateTokenAdapter is defined but not called in forward().
+        # The instantiation is removed to avoid dead-weight parameters being
+        # included in optimizer groups. See StateTokenAdapter class definition
+        # for details -- available for custom pipeline subclasses.
+        # self.state_adapter = StateTokenAdapter(...)  -- removed (C4)
 
         # Non-nn components (not part of model parameters)
         self.retrieval_index = RetrievalIndex(
@@ -565,7 +573,8 @@ class TriMemoryEngine(nn.Module):
         labels: Optional[Tensor] = None,
         retrieval_query_mode: str = "mean",
         retrieval_query_pos: int | None = None,
-        retrieval_temperature: float = 5.0,
+        retrieval_sharpness: float = 5.0,
+        retrieval_temperature: float | None = None,
         retrieval_decoder_mode: str = "pooled",
         copy_mix_positions: Optional[list[tuple[int, int]]] = None,
     ) -> dict:
@@ -574,13 +583,28 @@ class TriMemoryEngine(nn.Module):
         Args:
             retrieval_query_mode: "mean" (KV window mean) or "marker" (query_proj at pos)
             retrieval_query_pos: position of query marker token for "marker" mode
-            retrieval_temperature: softmax temperature for retrieval attention
+            retrieval_sharpness: Multiplier for retrieval scores before softmax.
+                Higher values = sharper (more selective) retrieval. Default 5.0.
+                NOTE: This is the INVERSE of LM temperature convention (scores * sharpness,
+                not scores / temperature).
             retrieval_decoder_mode: "pooled", "prefix", or "copy_mix"
             copy_mix_positions: list of (seq_pos, chunk_token_idx) pairs for copy_mix mode.
                 At each seq_pos in the logits, add alpha * copy_logits[:, chunk_token_idx, :].
         """
+        if retrieval_temperature is not None:
+            import warnings
+            warnings.warn(
+                "retrieval_temperature is deprecated, use retrieval_sharpness",
+                DeprecationWarning, stacklevel=2,
+            )
+            retrieval_sharpness = retrieval_temperature
         self._last_packet = None  # forward() does not build packets
         B, T = input_ids.shape
+        if T > self.pe.size(0):
+            raise ValueError(
+                f"Input length {T} exceeds max_seq_len {self.pe.size(0)}. "
+                f"Use a shorter sequence or increase max_seq_len in config."
+            )
         pe_len = min(T, self.pe.size(0))
         x = self.drop_emb(self.embedding(input_ids))
         x[:, :pe_len] = x[:, :pe_len] + self.pe[:pe_len]
@@ -589,7 +613,7 @@ class TriMemoryEngine(nn.Module):
         retrieval_context, ret_weights, ret_chunk_starts, context_tokens = (
             self._build_train_retrieval(
                 input_ids, x,
-                retrieval_temperature=retrieval_temperature,
+                retrieval_sharpness=retrieval_sharpness,
                 query_mode=retrieval_query_mode,
                 query_pos=retrieval_query_pos,
             )
@@ -653,7 +677,8 @@ class TriMemoryEngine(nn.Module):
         self,
         input_ids: Tensor,
         x: Tensor,
-        retrieval_temperature: float = 5.0,
+        retrieval_sharpness: float = 5.0,
+        retrieval_temperature: float | None = None,
         query_mode: str = "mean",
         query_pos: int | None = None,
     ) -> tuple[Optional[Tensor], Optional[Tensor], Optional[list[int]], Optional[Tensor]]:
@@ -671,6 +696,13 @@ class TriMemoryEngine(nn.Module):
               chunk_starts: list of chunk start positions or None
               context_tokens: (B, chunk_size, d_model) or None -- prefix tokens
         """
+        if retrieval_temperature is not None:
+            import warnings
+            warnings.warn(
+                "retrieval_temperature is deprecated, use retrieval_sharpness",
+                DeprecationWarning, stacklevel=2,
+            )
+            retrieval_sharpness = retrieval_temperature
         B, T = input_ids.shape
         C = x.shape[-1]
         if not self.enable_retrieval:
@@ -714,10 +746,11 @@ class TriMemoryEngine(nn.Module):
         c_norm = F.normalize(chunk_matrix, dim=-1)  # (B, n_chunks, d_model)
         scores = (c_norm * q_norm).sum(dim=-1)  # (B, n_chunks)
 
-        # NOTE: scores * temperature sharpens the distribution (higher temp = sharper).
-        # This is the inverse of the conventional "temperature" scaling (scores / temp).
-        # Semantically this acts as a sharpness parameter.
-        weights = torch.softmax(scores * retrieval_temperature, dim=-1)  # (B, n_chunks)
+        # retrieval_sharpness: Multiplier for retrieval scores before softmax.
+        # Higher values = sharper (more selective) retrieval. Default 5.0.
+        # NOTE: This is the INVERSE of LM temperature convention (scores * sharpness,
+        # not scores / temperature).
+        weights = torch.softmax(scores * retrieval_sharpness, dim=-1)  # (B, n_chunks)
 
         # NOTE: cosine similarity uses normalized vectors for scoring, but the
         # weighted sum uses raw (non-normalized) embeddings. This is intentional:
@@ -775,6 +808,10 @@ class TriMemoryEngine(nn.Module):
             retrieval_context = retrieval_context.unsqueeze(0).expand(B, -1)
 
         # Build hidden states -- cache embedding output for TRN state reuse
+        if T > self.pe.size(0):
+            raise ValueError(
+                f"Input chunk length {T} exceeds max_seq_len {self.pe.size(0)}."
+            )
         pe_start = min(position, self.pe.size(0) - T)
         pe_end = min(pe_start + T, self.pe.size(0))
         param_dtype = next(self.parameters()).dtype
@@ -806,6 +843,15 @@ class TriMemoryEngine(nn.Module):
             )
 
         # Update TRN states using per-layer hidden states (matches training path)
+        # Retrieval index is shared (not per-sample) -- only batch[0] tokens are indexed.
+        if input_ids.size(0) > 1 and not self._batch_warned:
+            import warnings
+            warnings.warn(
+                "forward_with_memory processes only batch[0] for retrieval index. "
+                "Use batch_size=1 for correct retrieval behavior.",
+                stacklevel=2,
+            )
+            self._batch_warned = True
         for t_idx in range(T):
             pos = position + t_idx
             for layer_idx, block in enumerate(self.blocks):
