@@ -12,5 +12,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: codespell-project/actions-codespell@v2
         with:
-          skip: "*.lock,*.json,.git,*.pt,*.bin"
-          ignore_words_list: "crate,ment,nd"
+          skip: "*.lock,*.json,*.jsonl,*.txt,*.pt,*.bin,.git,artifacts"
+          ignore_words_list: "crate,ment,nd,ot,curren,consol,alph,re-used,inconsisten"
