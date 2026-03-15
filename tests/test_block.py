@@ -31,11 +31,9 @@ def test_block_forward_shape(toy_block: TRNBlock, toy_cfg: TRNConfig) -> None:
 
 
 def test_swiglu_hidden_dim(toy_block: TRNBlock, toy_cfg: TRNConfig) -> None:
-    """SwiGLU gate/up weights use d_ff_hidden, not d_ff."""
-    gate_shape = toy_block.ffn.gate.weight.shape
-    up_shape   = toy_block.ffn.up.weight.shape
-    assert gate_shape == (toy_cfg.d_ff_hidden, toy_cfg.d_model)
-    assert up_shape   == (toy_cfg.d_ff_hidden, toy_cfg.d_model)
+    """SwiGLU fused gate_up weight has shape (2*d_ff_hidden, d_model)."""
+    gate_up_shape = toy_block.ffn.gate_up.weight.shape
+    assert gate_up_shape == (2 * toy_cfg.d_ff_hidden, toy_cfg.d_model)
 
 
 def test_d_ff_hidden_ne_d_ff_100m() -> None:

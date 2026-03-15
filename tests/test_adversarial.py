@@ -192,13 +192,16 @@ def test_rms_norm_output(toy_cfg: TRNConfig) -> None:
 
 
 def test_swiglu_formula_manual(toy_cfg: TRNConfig) -> None:
-    """Verify SwiGLU(x) == down(silu(gate(x)) * up(x)) with fixed weights."""
+    """Verify SwiGLU(x) == down(silu(gate) * up) with fused gate_up weight."""
     torch.manual_seed(7)
     d, h = 8, 16
     ffn = SwiGLU(d, h)
     x = torch.randn(2, 4, d)
     out = ffn(x)
-    expected = ffn.down(torch.nn.functional.silu(ffn.gate(x)) * ffn.up(x))
+    # Manually replicate the fused gate_up -> split -> silu*up -> down path
+    y = ffn.gate_up(x)
+    gate_out, up_out = y.split(ffn.d_ff_hidden, dim=-1)
+    expected = ffn.down(torch.nn.functional.silu(gate_out) * up_out)
     assert torch.allclose(out, expected, atol=1e-6)
 
 
@@ -287,7 +290,7 @@ def test_inf_input_to_oscillator(toy_cfg: TRNConfig) -> None:
     B, n = 2, 3
     x = torch.full((B, n, toy_cfg.d_model), 1e38)
     with torch.no_grad():
-        A, omega, phi, alpha = proj(x)
+        A, omega, phi, alpha, g_out, beta = proj(x)
     assert torch.all(A <= 10.0 + 1e-4), f"A exceeded clamp max: A.max()={A.max().item()}"
     assert torch.all(torch.isfinite(omega)), "omega is not finite"
     assert torch.all(torch.isfinite(phi)),   "phi is not finite"

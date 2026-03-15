@@ -48,8 +48,8 @@ class TestAlphaInit:
         alpha_means: list[float] = []
         for name, param in model.named_parameters():
             if "proj.bias" in name:
-                K = param.shape[0] // 4
-                gate_bias = param.data[3 * K:]
+                K = param.shape[0] // 6
+                gate_bias = param.data[3 * K : 5 * K]
                 alpha_vals = torch.sigmoid(gate_bias)
                 alpha_means.append(alpha_vals.mean().item())
 
@@ -65,8 +65,8 @@ class TestAlphaInit:
 
         for name, param in model.named_parameters():
             if "proj.bias" in name:
-                K = param.shape[0] // 4
-                gate_bias = param.data[3 * K:]
+                K = param.shape[0] // 6
+                gate_bias = param.data[3 * K : 5 * K]
                 alpha_vals = torch.sigmoid(gate_bias)
                 # No oscillator should start above 0.95
                 assert alpha_vals.max().item() < 0.95, (
@@ -201,7 +201,7 @@ class TestAmplitudeClamp:
         # Feed large inputs to push amplitude logits high
         x = torch.randn(2, 16, cfg.d_model) * 10.0
         for block in model.blocks:
-            A, omega, phi, alpha = block.resonance.proj(x)
+            A, omega, phi, alpha, g_out, beta = block.resonance.proj(x)
             assert A.max().item() <= 3.0 + 1e-6, (
                 f"Amplitude exceeded max: {A.max().item():.4f}"
             )

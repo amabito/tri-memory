@@ -398,19 +398,10 @@ class TestConcurrentReadWrite:
         turns it into a failure, forcing removal of the xfail marker.
     """
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason=(
-            "BUG: RetrievalIndex._chunks is iterated without a lock. "
-            "Concurrent add_chunk() raises RuntimeError('deque mutated during iteration'). "
-            "Fix: protect search_with_scores iteration with threading.Lock()."
-        ),
-    )
     def test_concurrent_search_while_adding_no_crash(self) -> None:
         """10 reader threads searching while 1 writer adds chunks: no exception.
 
-        Currently FAILS with RuntimeError('deque mutated during iteration').
+        Fixed: search_with_scores now snapshots deque to list before iteration.
         """
         max_chunks = 16
         d_model = 32
@@ -452,18 +443,10 @@ class TestConcurrentReadWrite:
 
         assert errors == [], f"Exceptions during concurrent access: {errors}"
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason=(
-            "BUG: same root cause as test_concurrent_search_while_adding_no_crash. "
-            "deque mutation during iteration surfaces as RuntimeError in search results."
-        ),
-    )
     def test_concurrent_results_contain_valid_records(self) -> None:
         """All ChunkRecords returned during concurrent ops must be coherent.
 
-        Currently FAILS because search_with_scores is not thread-safe.
+        Fixed: search_with_scores now snapshots deque to list before iteration.
         """
         max_chunks = 8
         d_model = 16

@@ -31,13 +31,12 @@ def _forward(layer: OscillatorProjection, B: int = 2, n: int = 5) -> tuple:
 # ---------------------------------------------------------------------------
 
 def test_oscillator_output_shapes(layer: OscillatorProjection) -> None:
-    """All four outputs must have shape (B, n, K)."""
+    """All six outputs must have shape (B, n, K)."""
     B, n = 2, 5
-    (A, omega, phi, alpha), (eB, en, eK) = _forward(layer, B, n)
-    assert A.shape == (eB, en, eK), f"A shape {A.shape}"
-    assert omega.shape == (eB, en, eK), f"omega shape {omega.shape}"
-    assert phi.shape == (eB, en, eK), f"phi shape {phi.shape}"
-    assert alpha.shape == (eB, en, eK), f"alpha shape {alpha.shape}"
+    (A, omega, phi, alpha, g_out, beta), (eB, en, eK) = _forward(layer, B, n)
+    for name, t in [("A", A), ("omega", omega), ("phi", phi),
+                    ("alpha", alpha), ("g_out", g_out), ("beta", beta)]:
+        assert t.shape == (eB, en, eK), f"{name} shape {t.shape}"
 
 
 # ---------------------------------------------------------------------------
@@ -46,31 +45,31 @@ def test_oscillator_output_shapes(layer: OscillatorProjection) -> None:
 
 def test_A_positive(layer: OscillatorProjection) -> None:
     """Amplitude A must be strictly positive everywhere."""
-    (A, _, _, _), _ = _forward(layer)
+    (A, _, _, _, _, _), _ = _forward(layer)
     assert (A > 0).all(), "A has non-positive values"
 
 
 def test_A_clamped(layer: OscillatorProjection) -> None:
     """Amplitude A must not exceed 10.0."""
-    (A, _, _, _), _ = _forward(layer)
+    (A, _, _, _, _, _), _ = _forward(layer)
     assert (A <= 10.0).all(), f"A max = {A.max().item()}"
 
 
 def test_omega_lower_bound(layer: OscillatorProjection) -> None:
     """omega must be strictly positive (omega_base starts at 0.05*pi > 0)."""
-    (_, omega, _, _), _ = _forward(layer)
+    (_, omega, _, _, _, _), _ = _forward(layer)
     assert (omega > 0).all(), f"omega min = {omega.min().item()}"
 
 
 def test_phi_range(layer: OscillatorProjection) -> None:
     """phi must satisfy |phi| <= pi."""
-    (_, _, phi, _), _ = _forward(layer)
+    (_, _, phi, _, _, _), _ = _forward(layer)
     assert (phi.abs() <= pi + 1e-6).all(), f"phi max abs = {phi.abs().max().item()}"
 
 
 def test_alpha_range(layer: OscillatorProjection) -> None:
     """alpha must be strictly in (0, 1) — sigmoid never reaches endpoints."""
-    (_, _, _, alpha), _ = _forward(layer)
+    (_, _, _, alpha, _, _), _ = _forward(layer)
     assert (alpha > 0).all(), f"alpha min = {alpha.min().item()}"
     assert (alpha < 1).all(), f"alpha max = {alpha.max().item()}"
 
@@ -99,9 +98,10 @@ def test_gate_bias_default(layer: OscillatorProjection) -> None:
 
     x = torch.zeros(1, 1, cfg.d_model)
     with torch.no_grad():
-        _, _, _, alpha = osc(x)
+        _, _, _, alpha, _, _ = osc(x)
 
-    expected = torch.sigmoid(torch.tensor(1.73))
+    # gate_bias_init=0.65: sigmoid(0.619) ~ 0.65
+    expected = torch.tensor(0.65)
     torch.testing.assert_close(alpha.mean(), expected, atol=1e-3, rtol=1e-3)
 
 
@@ -114,8 +114,9 @@ def test_zero_input_no_nan(layer: OscillatorProjection) -> None:
     d = layer.proj.in_features
     x = torch.zeros(2, 4, d)
     with torch.no_grad():
-        A, omega, phi, alpha = layer(x)
-    for name, t in [("A", A), ("omega", omega), ("phi", phi), ("alpha", alpha)]:
+        A, omega, phi, alpha, g_out, beta = layer(x)
+    for name, t in [("A", A), ("omega", omega), ("phi", phi),
+                    ("alpha", alpha), ("g_out", g_out), ("beta", beta)]:
         assert torch.isfinite(t).all(), f"{name} has non-finite values on zero input"
 
 
@@ -124,7 +125,7 @@ def test_large_input_clamp(layer: OscillatorProjection) -> None:
     d = layer.proj.in_features
     x = torch.full((1, 1, d), 1e6)
     with torch.no_grad():
-        A, _, _, _ = layer(x)
+        A, _, _, _, _, _ = layer(x)
     a_max = layer.amplitude_max
     # softplus(large) is large, but clamp(max=amplitude_max) must cap it
     assert (A <= a_max + 1e-5).all(), f"A not clamped: max={A.max().item()}"
