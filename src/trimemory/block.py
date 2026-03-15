@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-import torch
-
 from .config import TRNConfig
 from .resonance import TemporalResonanceLayer
 from .utils import build_rms_norm
