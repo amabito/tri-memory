@@ -1,0 +1,73 @@
+{
+  "config": "1A",
+  "seed": 42,
+  "n_params": 43576838,
+  "layout": "TTATTTAT",
+  "d_model": 512,
+  "n_oscillators": 256,
+  "n_layers": 8,
+  "epochs": [
+    {
+      "epoch": 0,
+      "train_loss": 6.8865,
+      "val_ppl": 575.13,
+      "grad_norm": 0.9791,
+      "lr": 0.0001,
+      "time_sec": 131.5,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 1,
+      "train_loss": 5.9882,
+      "val_ppl": 399.16,
+      "grad_norm": 0.9083,
+      "lr": 0.0002,
+      "time_sec": 128.7,
+      "vram_mb": 5220.0
+    }
+  ],
+  "final": {
+    "best_val_ppl": 399.16,
+    "total_time_sec": 260.2,
+    "peak_vram_mb": 5220.0
+  },
+  "diagnostics": {
+    "alpha_mean": [
+      0.6496,
+      0.6504,
+      null,
+      0.653,
+      0.653,
+      0.6533,
+      null,
+      0.6538
+    ],
+    "res_scale": [
+      0.116008,
+      0.075446,
+      null,
+      0.179944,
+      0.194153,
+      0.199072,
+      null,
+      0.199749
+    ],
+    "layer_type": [
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN",
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN"
+    ]
+  },
+  "smoke_checks": {
+    "vram_ok": true,
+    "loss_decreasing": true,
+    "alpha_ok": true,
+    "res_scale_ok": true,
+    "grad_norm_ok": true
+  }
+}

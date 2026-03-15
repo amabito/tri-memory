@@ -1,0 +1,237 @@
+{
+  "config": "1A",
+  "seed": 7,
+  "n_params": 43576838,
+  "layout": "TTATTTAT",
+  "d_model": 512,
+  "n_oscillators": 256,
+  "n_layers": 8,
+  "epochs": [
+    {
+      "epoch": 0,
+      "train_loss": 6.8929,
+      "val_ppl": 580.38,
+      "grad_norm": 0.927,
+      "lr": 0.0001,
+      "time_sec": 131.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 1,
+      "train_loss": 5.9913,
+      "val_ppl": 399.33,
+      "grad_norm": 1.019,
+      "lr": 0.0002,
+      "time_sec": 130.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 2,
+      "train_loss": 5.5821,
+      "val_ppl": 316.58,
+      "grad_norm": 0.9616,
+      "lr": 0.0003,
+      "time_sec": 134.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 3,
+      "train_loss": 5.2599,
+      "val_ppl": 269.44,
+      "grad_norm": 1.0055,
+      "lr": 0.0003,
+      "time_sec": 134.5,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 4,
+      "train_loss": 5.0218,
+      "val_ppl": 244.02,
+      "grad_norm": 1.0051,
+      "lr": 0.000299,
+      "time_sec": 156.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 5,
+      "train_loss": 4.8266,
+      "val_ppl": 228.81,
+      "grad_norm": 1.1149,
+      "lr": 0.000296,
+      "time_sec": 204.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 6,
+      "train_loss": 4.6563,
+      "val_ppl": 218.77,
+      "grad_norm": 1.1149,
+      "lr": 0.000292,
+      "time_sec": 201.6,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 7,
+      "train_loss": 4.5026,
+      "val_ppl": 208.81,
+      "grad_norm": 1.219,
+      "lr": 0.000286,
+      "time_sec": 200.8,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 8,
+      "train_loss": 4.3655,
+      "val_ppl": 206.29,
+      "grad_norm": 1.2648,
+      "lr": 0.000278,
+      "time_sec": 200.9,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 9,
+      "train_loss": 4.2372,
+      "val_ppl": 204.7,
+      "grad_norm": 1.246,
+      "lr": 0.000268,
+      "time_sec": 200.9,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 10,
+      "train_loss": 4.1188,
+      "val_ppl": 203.96,
+      "grad_norm": 1.3415,
+      "lr": 0.000258,
+      "time_sec": 200.9,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 11,
+      "train_loss": 4.0086,
+      "val_ppl": 206.64,
+      "grad_norm": 1.3979,
+      "lr": 0.000246,
+      "time_sec": 201.1,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 12,
+      "train_loss": 3.9033,
+      "val_ppl": 210.88,
+      "grad_norm": 1.4558,
+      "lr": 0.000232,
+      "time_sec": 203.1,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 13,
+      "train_loss": 3.8033,
+      "val_ppl": 212.68,
+      "grad_norm": 1.5,
+      "lr": 0.000218,
+      "time_sec": 204.4,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 14,
+      "train_loss": 3.7087,
+      "val_ppl": 217.87,
+      "grad_norm": 1.6137,
+      "lr": 0.000204,
+      "time_sec": 204.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 15,
+      "train_loss": 3.6194,
+      "val_ppl": 222.62,
+      "grad_norm": 1.6421,
+      "lr": 0.000188,
+      "time_sec": 204.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 16,
+      "train_loss": 3.5359,
+      "val_ppl": 228.6,
+      "grad_norm": 1.6525,
+      "lr": 0.000173,
+      "time_sec": 204.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 17,
+      "train_loss": 3.4522,
+      "val_ppl": 230.46,
+      "grad_norm": 1.6954,
+      "lr": 0.000157,
+      "time_sec": 204.5,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 18,
+      "train_loss": 3.3777,
+      "val_ppl": 238.07,
+      "grad_norm": 1.822,
+      "lr": 0.000142,
+      "time_sec": 204.5,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 19,
+      "train_loss": 3.3051,
+      "val_ppl": 244.59,
+      "grad_norm": 1.8321,
+      "lr": 0.000126,
+      "time_sec": 204.6,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 20,
+      "train_loss": 3.2389,
+      "val_ppl": 250.99,
+      "grad_norm": 1.8449,
+      "lr": 0.000112,
+      "time_sec": 204.6,
+      "vram_mb": 5220.0
+    }
+  ],
+  "final": {
+    "best_val_ppl": 203.96,
+    "total_time_sec": 3935.4,
+    "peak_vram_mb": 5220.0
+  },
+  "diagnostics": {
+    "alpha_mean": [
+      0.6252,
+      0.6514,
+      null,
+      0.6414,
+      0.6441,
+      0.6445,
+      null,
+      0.6442
+    ],
+    "res_scale": [
+      0.234866,
+      0.279143,
+      null,
+      0.848551,
+      1.107132,
+      1.238904,
+      null,
+      1.081124
+    ],
+    "layer_type": [
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN",
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN"
+    ]
+  }
+}

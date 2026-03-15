@@ -1,0 +1,237 @@
+{
+  "config": "2A",
+  "seed": 42,
+  "n_params": 43576838,
+  "layout": "TTATTTAT",
+  "d_model": 512,
+  "n_oscillators": 256,
+  "n_layers": 8,
+  "epochs": [
+    {
+      "epoch": 0,
+      "train_loss": 7.0417,
+      "val_ppl": 635.43,
+      "grad_norm": 0.7892,
+      "lr": 0.0001,
+      "time_sec": 122.4,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 1,
+      "train_loss": 6.1588,
+      "val_ppl": 431.42,
+      "grad_norm": 0.7877,
+      "lr": 0.0002,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 2,
+      "train_loss": 5.7416,
+      "val_ppl": 337.37,
+      "grad_norm": 0.7722,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 3,
+      "train_loss": 5.4227,
+      "val_ppl": 289.71,
+      "grad_norm": 0.8497,
+      "lr": 0.0003,
+      "time_sec": 122.1,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 4,
+      "train_loss": 5.1919,
+      "val_ppl": 257.33,
+      "grad_norm": 0.8632,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 5,
+      "train_loss": 5.0099,
+      "val_ppl": 237.8,
+      "grad_norm": 0.9132,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 6,
+      "train_loss": 4.8546,
+      "val_ppl": 224.15,
+      "grad_norm": 0.9785,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 7,
+      "train_loss": 4.7175,
+      "val_ppl": 214.57,
+      "grad_norm": 1.0295,
+      "lr": 0.0003,
+      "time_sec": 122.4,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 8,
+      "train_loss": 4.5946,
+      "val_ppl": 207.15,
+      "grad_norm": 1.0258,
+      "lr": 0.0003,
+      "time_sec": 122.4,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 9,
+      "train_loss": 4.4851,
+      "val_ppl": 202.05,
+      "grad_norm": 1.0576,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 10,
+      "train_loss": 4.3833,
+      "val_ppl": 199.14,
+      "grad_norm": 1.0706,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 11,
+      "train_loss": 4.2896,
+      "val_ppl": 194.72,
+      "grad_norm": 1.1538,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 12,
+      "train_loss": 4.2024,
+      "val_ppl": 195.0,
+      "grad_norm": 1.1602,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 13,
+      "train_loss": 4.1229,
+      "val_ppl": 194.35,
+      "grad_norm": 1.1848,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 14,
+      "train_loss": 4.0481,
+      "val_ppl": 192.9,
+      "grad_norm": 1.1861,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 15,
+      "train_loss": 3.9769,
+      "val_ppl": 195.1,
+      "grad_norm": 1.2676,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 16,
+      "train_loss": 3.9119,
+      "val_ppl": 198.15,
+      "grad_norm": 1.2806,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 17,
+      "train_loss": 3.8484,
+      "val_ppl": 197.22,
+      "grad_norm": 1.349,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 18,
+      "train_loss": 3.7892,
+      "val_ppl": 202.19,
+      "grad_norm": 1.3812,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 19,
+      "train_loss": 3.7331,
+      "val_ppl": 202.75,
+      "grad_norm": 1.3572,
+      "lr": 0.0003,
+      "time_sec": 122.3,
+      "vram_mb": 5220.0
+    },
+    {
+      "epoch": 20,
+      "train_loss": 3.6806,
+      "val_ppl": 204.41,
+      "grad_norm": 1.4348,
+      "lr": 0.0003,
+      "time_sec": 122.2,
+      "vram_mb": 5220.0
+    }
+  ],
+  "final": {
+    "best_val_ppl": 192.9,
+    "total_time_sec": 2567.2,
+    "peak_vram_mb": 5220.0
+  },
+  "diagnostics": {
+    "alpha_mean": [
+      0.6222,
+      0.64,
+      null,
+      0.6378,
+      0.6399,
+      0.639,
+      null,
+      0.6339
+    ],
+    "res_scale": [
+      0.178853,
+      0.475998,
+      null,
+      1.215641,
+      1.405397,
+      1.615761,
+      null,
+      1.450374
+    ],
+    "layer_type": [
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN",
+      "TRN",
+      "TRN",
+      "Attn",
+      "TRN"
+    ]
+  }
+}

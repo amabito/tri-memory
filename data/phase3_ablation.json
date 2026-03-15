@@ -1,0 +1,7 @@
+{
+  "baseline_ppl": 189.22,
+  "trn_zero_ppl": 405.9,
+  "trn_contribution": 216.68,
+  "attn_zero_ppl": 299.07,
+  "attn_contribution": 109.86
+}
