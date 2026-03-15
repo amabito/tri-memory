@@ -1,0 +1,40 @@
+{
+  "epochs": [
+    {
+      "epoch": 0,
+      "train_loss": 5.0,
+      "val_ppl": 85.12,
+      "steps": 28929,
+      "time_sec": 5971.4,
+      "tok_per_sec": 19843.0
+    },
+    {
+      "epoch": 1,
+      "train_loss": 4.576,
+      "val_ppl": 76.22,
+      "steps": 28929,
+      "time_sec": 6067.0,
+      "tok_per_sec": 19531.0
+    },
+    {
+      "epoch": 2,
+      "train_loss": 4.4342,
+      "val_ppl": 67.27,
+      "steps": 28929,
+      "time_sec": 5828.9,
+      "tok_per_sec": 20329.0
+    }
+  ],
+  "config": {
+    "d_model": 512,
+    "n_oscillators": 256,
+    "n_layers": 8,
+    "dropout": 0.3,
+    "n_params": 43576838,
+    "data": "wikitext103"
+  },
+  "final": {
+    "best_val_ppl": 67.27,
+    "total_time_min": 297.8
+  }
+}
