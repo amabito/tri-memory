@@ -25,7 +25,7 @@ class TRNConfig:
     res_scale_init:      float = 0.05    # learnable resonance output scale initial value
     gate_bias_init:      float = 0.65    # sigmoid(0.619) ~ 0.65; P0 stabilization default
     phase_mode:          str   = "log"   # "log" = omega*log(i+1), "linear" = omega*i
-    scan_chunk_size:     int   = 16     # chunk size for chunked_resonance_scan
+    scan_chunk_size:     int   = 64     # chunk size for chunked_resonance_scan
 
     @property
     def d_ff_hidden(self) -> int:

@@ -8,6 +8,8 @@ from torch import Tensor
 
 # Thread-safe counters for SafeCumprod gradient statistics.
 # Accumulated across forward/backward calls; reset by read_and_reset_stats().
+# Set _STATS_ENABLED = False for production training to eliminate GPU-CPU syncs.
+_STATS_ENABLED = False
 _safe_cumprod_lock = threading.Lock()
 _safe_cumprod_stats = {
     "total_elements": 0,
@@ -64,33 +66,31 @@ class SafeCumprod(torch.autograd.Function):
         # cleanup below handles gradient explosion.
         grad_input = grad_sum / alpha.clamp(min=1e-30)
 
-        # Collect statistics before guard
-        max_abs_before = grad_input.nan_to_num(nan=0.0, posinf=1e30, neginf=-1e30).abs().max().item()
-        nonfinite_mask = ~torch.isfinite(grad_input)
-        n_nonfinite = nonfinite_mask.sum().item()
-
         # Known limitation: when multiple consecutive alpha values are near-zero,
         # gradient signal is lost for preceding elements (spuriously zero).
         # This is acceptable because near-zero alpha means the state is intentionally
         # "reset" -- gradient through reset points is not meaningful.
 
-        # Zero out NaN/Inf
-        if n_nonfinite > 0:
+        # Zero out NaN/Inf (no GPU-CPU sync needed)
+        nonfinite_mask = ~torch.isfinite(grad_input)
+        if nonfinite_mask.any():
             grad_input = torch.where(nonfinite_mask, torch.zeros_like(grad_input), grad_input)
 
-        max_abs_after = grad_input.abs().max().item()
-
-        # Update thread-safe stats
-        with _safe_cumprod_lock:
-            _safe_cumprod_stats["total_elements"] += grad_input.numel()
-            _safe_cumprod_stats["nonfinite_elements"] += n_nonfinite
-            _safe_cumprod_stats["max_abs_before_guard"] = max(
-                _safe_cumprod_stats["max_abs_before_guard"], max_abs_before,
-            )
-            _safe_cumprod_stats["max_abs_after_guard"] = max(
-                _safe_cumprod_stats["max_abs_after_guard"], max_abs_after,
-            )
-            _safe_cumprod_stats["calls"] += 1
+        # Stats collection (disabled by default -- each .item() forces GPU-CPU sync)
+        if _STATS_ENABLED:
+            max_abs_before = grad_input.abs().max().item()
+            n_nonfinite = nonfinite_mask.sum().item()
+            max_abs_after = grad_input.abs().max().item()
+            with _safe_cumprod_lock:
+                _safe_cumprod_stats["total_elements"] += grad_input.numel()
+                _safe_cumprod_stats["nonfinite_elements"] += n_nonfinite
+                _safe_cumprod_stats["max_abs_before_guard"] = max(
+                    _safe_cumprod_stats["max_abs_before_guard"], max_abs_before,
+                )
+                _safe_cumprod_stats["max_abs_after_guard"] = max(
+                    _safe_cumprod_stats["max_abs_after_guard"], max_abs_after,
+                )
+                _safe_cumprod_stats["calls"] += 1
 
         return grad_input, None
 

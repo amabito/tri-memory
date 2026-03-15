@@ -106,12 +106,14 @@ class StateTokenAdapter(nn.Module):
 class _SwiGLUFFN(nn.Module):
     def __init__(self, d_model: int, d_ff_hidden: int) -> None:
         super().__init__()
-        self.gate = nn.Linear(d_model, d_ff_hidden, bias=False)
-        self.up = nn.Linear(d_model, d_ff_hidden, bias=False)
+        self.d_ff_hidden = d_ff_hidden
+        self.gate_up = nn.Linear(d_model, d_ff_hidden * 2, bias=False)
         self.down = nn.Linear(d_ff_hidden, d_model, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.down(F.silu(self.gate(x)) * self.up(x))
+        y = self.gate_up(x)
+        gate, up = y.split(self.d_ff_hidden, dim=-1)
+        return self.down(F.silu(gate) * up)
 
 
 class TriMemoryBlock(nn.Module):

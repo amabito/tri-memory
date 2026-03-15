@@ -9,13 +9,15 @@ from torch import Tensor
 
 
 class OscillatorProjection(nn.Module):
-    """Projects token embeddings to oscillator parameters (A, omega, phi, alpha).
+    """Projects token embeddings to oscillator parameters (A, omega, phi, alpha, g_out, beta).
 
-    Output layout (4*K channels total):
+    Output layout (6*K channels total):
       [0 : K ]  amplitude logits   -> A     = softplus(.).clamp(max=amplitude_max)
       [K : 2K]  frequency offsets  -> omega = sigmoid(.) * pi + omega_base
       [2K: 3K]  phase offsets      -> phi   = tanh(.) * pi
       [3K: 4K]  decay gate logits  -> alpha = sigmoid(.)
+      [4K: 5K]  output gate logits -> g_out = sigmoid(.)
+      [5K: 6K]  erase gate logits  -> beta  = sigmoid(.)   (delta rule)
     """
 
     def __init__(
@@ -28,7 +30,7 @@ class OscillatorProjection(nn.Module):
         super().__init__()
         self.K = K
         self.amplitude_max = amplitude_max
-        self.proj = nn.Linear(d_model, 4 * K, bias=True)
+        self.proj = nn.Linear(d_model, 6 * K, bias=True)
 
         # Learnable base frequencies: uniformly spread over (0.05*pi, 0.95*pi).
         self.omega_base = nn.Parameter(
@@ -46,9 +48,11 @@ class OscillatorProjection(nn.Module):
         import math
         gate_bias_init_clamped = max(0.01, min(0.99, gate_bias_init))
         bias_val = math.log(gate_bias_init_clamped / (1.0 - gate_bias_init_clamped))
-        self.proj.bias.data[3 * self.K :].fill_(bias_val)
+        self.proj.bias.data[3 * self.K : 5 * self.K].fill_(bias_val)
+        # Beta (erase gate) init: sigmoid(-2) ~ 0.12, weak erase at start
+        self.proj.bias.data[5 * self.K :].fill_(-2.0)
 
-    def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """
         Args:
             x: (B, n, d_model)
@@ -57,9 +61,11 @@ class OscillatorProjection(nn.Module):
             omega: (B, n, K)  frequency in (0.05*pi, pi)
             phi:   (B, n, K)  phase in (-pi, pi)
             alpha: (B, n, K)  decay gate in (0, 1)
+            g_out: (B, n, K)  output gate in (0, 1)
+            beta:  (B, n, K)  erase gate in (0, 1)
         """
-        out = self.proj(x)  # (B, n, 4K)
-        A_r, Om_r, Ph_r, Ga_r = out.chunk(4, dim=-1)
+        out = self.proj(x)  # (B, n, 6K)
+        A_r, Om_r, Ph_r, Ga_r, Go_r, Be_r = out.chunk(6, dim=-1)
 
         # softplus + clamp: avoids the double-saturation gradient vanishing that
         # occurred with the old softplus+tanh formulation. Maps to (0, amplitude_max).
@@ -74,5 +80,7 @@ class OscillatorProjection(nn.Module):
         # in scan.py. The gate_bias_init (default 0.65) keeps alpha centered
         # away from extremes at initialization.
         alpha = torch.sigmoid(Ga_r)
+        g_out = torch.sigmoid(Go_r)
+        beta  = torch.sigmoid(Be_r)
 
-        return A, omega, phi, alpha
+        return A, omega, phi, alpha, g_out, beta

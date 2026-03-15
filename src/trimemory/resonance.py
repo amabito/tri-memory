@@ -57,10 +57,9 @@ class TemporalResonanceLayer(nn.Module):
             gate_bias_init=gate_bias_init,
         )
 
-        # W_res init: std=2e-3 (baseline default)
-        # Bimodality is addressed by Fix D (LR warmup 300 steps), not init scale.
-        # Fix B (std=1e-4) was reverted -- ineffective in Fix C post-world.
-        self.W_res = nn.Linear(K, d_model, bias=False)
+        # W_res projects demodulated Re+Im (2K) to d_model.
+        # Using both Re and Im doubles state information utilization.
+        self.W_res = nn.Linear(2 * K, d_model, bias=False)
         nn.init.normal_(self.W_res.weight, std=2e-3)
 
         # Learnable scalar that multiplies the resonance delta before residual add
@@ -94,7 +93,7 @@ class TemporalResonanceLayer(nn.Module):
         B, n, _ = x.shape
         device = x.device
 
-        A, omega, phi, alpha = self.proj(x)   # each (B, n, K)
+        A, omega, phi, alpha, g_out, beta = self.proj(x)   # each (B, n, K)
 
         positions = self._compute_positions(n, device)
         angle = omega * positions + phi  # (B, n, K)
@@ -120,6 +119,17 @@ class TemporalResonanceLayer(nn.Module):
             else:
                 r_r, r_i = chunked_resonance_scan(alpha_f, drive_r, drive_i, chunk_size=self.scan_chunk_size)
 
+        # Delta rule (write-with-erase): subtract old content at current frequency
+        # before the scan output is used. This is a post-scan approximation of
+        # DeltaNet's targeted memory overwriting. The erase gate beta controls
+        # how much of the current-frequency readout is removed from state.
+        beta_f = beta.float()
+        readout = r_r * cos_angle.float() + r_i * sin_angle.float()  # (B, n, K)
+        erase_r = beta_f * readout * cos_angle.float()
+        erase_i = beta_f * readout * sin_angle.float()
+        r_r = r_r - erase_r
+        r_i = r_i - erase_i
+
         # P0-D: Always-on per-channel state normalization (default ON)
         if self.state_norm_enabled:
             r_r, r_i = self._apply_state_norm(r_r, r_i)
@@ -138,11 +148,15 @@ class TemporalResonanceLayer(nn.Module):
         # Demodulate: project resonance onto the local carrier.
         cos_a = cos_angle.to(x.dtype)
         sin_a = sin_angle.to(x.dtype)
-        # Demodulate: extract real component of r * exp(-j*angle).
-        # Im(r * exp(-j*angle)) = -r_r*sin_a + r_i*cos_a is discarded.
-        # This is a design choice: K real outputs suffice for the d_model projection.
-        # Using both Re and Im would double the input to W_res (2K -> d_model).
-        rho   = r_r * cos_a + r_i * sin_a   # (B, n, K)
+        # Demodulate: extract both Re and Im of r * exp(-j*angle).
+        # Re = r_r*cos + r_i*sin (in-phase), Im = -r_r*sin + r_i*cos (quadrature).
+        # Using both doubles state information utilization without changing recurrence.
+        rho_re = r_r * cos_a + r_i * sin_a         # (B, n, K)
+        rho_im = -r_r * sin_a + r_i * cos_a        # (B, n, K)
+        rho = torch.cat([rho_re, rho_im], dim=-1)  # (B, n, 2K)
+        # Output gate (GLA-style): selective readout from state
+        g_out_2k = g_out.to(rho.dtype).repeat(1, 1, 2) if rho.size(-1) == 2 * g_out.size(-1) else g_out.to(rho.dtype)
+        rho = g_out_2k * rho
 
         # Debug: store rho for NaN tracing (detached, no graph impact)
         if getattr(self, "_debug_trace", False):
@@ -177,12 +191,14 @@ class TemporalResonanceLayer(nn.Module):
         # Cast to weight dtype so projection works under any AMP regime.
         proj_dtype = self.proj.proj.weight.dtype
         x_t = x_single.unsqueeze(1).to(proj_dtype)     # (B, 1, d_model)
-        A_t, omega_t, phi_t, alpha_t = self.proj(x_t)  # each (B, 1, K)
+        A_t, omega_t, phi_t, alpha_t, g_out_t, beta_t = self.proj(x_t)  # each (B, 1, K)
 
         A_t     = A_t[:, 0]      # (B, K)
         omega_t = omega_t[:, 0]
         phi_t   = phi_t[:, 0]
         alpha_t = alpha_t[:, 0]
+        g_out_t = g_out_t[:, 0]
+        beta_t  = beta_t[:, 0]
 
         pos = float(position)
         if self.phase_mode == "log":
@@ -199,6 +215,12 @@ class TemporalResonanceLayer(nn.Module):
         # State update in fp32.
         r_real  = alpha_f * r_real + v_r
         r_imag  = alpha_f * r_imag + v_i
+
+        # Delta rule erase: remove old content at current frequency
+        readout_t = r_real * cos_angle.float() + r_imag * sin_angle.float()
+        beta_f = beta_t.float()
+        r_real = r_real - beta_f * readout_t * cos_angle.float()
+        r_imag = r_imag - beta_f * readout_t * sin_angle.float()
 
         # Demodulate and project.
         # state_norm is applied to a COPY used only for demodulation output.
@@ -222,8 +244,13 @@ class TemporalResonanceLayer(nn.Module):
 
         cos_a = cos_angle.to(r_real.dtype)
         sin_a = sin_angle.to(r_real.dtype)
-        # Demodulate: Re(r * exp(-j*angle)). Im part discarded by design.
-        rho   = r_real_demod * cos_a + r_imag_demod * sin_a   # (B, K) fp32
+        # Demodulate: Re + Im
+        rho_re = r_real_demod * cos_a + r_imag_demod * sin_a   # (B, K)
+        rho_im = -r_real_demod * sin_a + r_imag_demod * cos_a  # (B, K)
+        rho = torch.cat([rho_re, rho_im], dim=-1)              # (B, 2K)
+        # Output gate (GLA-style): selective readout from state
+        g_out_2k = g_out_t.to(rho.dtype).repeat(1, 2)
+        rho = g_out_2k * rho
 
         # P0-A: apply learnable res_scale
         out = (self.res_scale * self.W_res(rho)).to(input_dtype)
