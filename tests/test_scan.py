@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import torch
-from trimemory.scan import _combine, sequential_resonance_scan
+from trimemory.scan import (
+    _combine,
+    _kogge_stone_scan,
+    chunked_resonance_scan,
+    parallel_resonance_scan,
+    sequential_resonance_scan,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -95,38 +101,131 @@ def test_sequential_scan_finite():
 
 
 # ---------------------------------------------------------------------------
-# parallel_fallback test
+# parallel_resonance_scan (Kogge-Stone) tests
 # ---------------------------------------------------------------------------
 
-def test_parallel_fallback(monkeypatch):
-    import trimemory.scan as scan_module
-
-    # Remove associative_scan from the torch mock so parallel path falls back
-    class _FakeTorch:
-        """Minimal torch stand-in without associative_scan."""
-        def __getattr__(self, name):
-            return getattr(torch, name)
-
-    monkeypatch.setattr(scan_module, "torch", _FakeTorch())
-
-    called = []
-    original_chunked = scan_module.chunked_resonance_scan
-
-    def _spy(*args, **kwargs):
-        called.append(True)
-        return original_chunked(*args, **kwargs)
-
-    monkeypatch.setattr(scan_module, "chunked_resonance_scan", _spy)
-
-    B, n, K = 1, 4, 2
-    alpha   = torch.rand(B, n, K).clamp(0.0, 0.99)
+def test_kogge_stone_matches_sequential():
+    """Kogge-Stone scan must match sequential scan within fp32 tolerance."""
+    torch.manual_seed(10)
+    B, n, K = 2, 32, 8
+    alpha   = torch.rand(B, n, K).clamp(0.1, 0.9)
     drive_r = torch.randn(B, n, K)
     drive_i = torch.randn(B, n, K)
 
-    from trimemory.scan import parallel_resonance_scan
-    parallel_resonance_scan(alpha, drive_r, drive_i)
+    r_r_ks, r_i_ks  = parallel_resonance_scan(alpha, drive_r, drive_i)
+    r_r_seq, r_i_seq = sequential_resonance_scan(alpha, drive_r, drive_i)
 
-    assert len(called) > 0, "chunked_resonance_scan was not called as fallback"
+    assert torch.allclose(r_r_ks, r_r_seq, atol=1e-4), \
+        f"r_r max diff: {(r_r_ks - r_r_seq).abs().max():.2e}"
+    assert torch.allclose(r_i_ks, r_i_seq, atol=1e-4), \
+        f"r_i max diff: {(r_i_ks - r_i_seq).abs().max():.2e}"
+
+
+def test_kogge_stone_closer_to_sequential_than_chunked():
+    """Kogge-Stone (pure multiplications) is numerically closer to the sequential
+    reference than the chunked scan (which uses SafeCumprod + division rescaling).
+
+    The chunked scan is an approximate algorithm used as a CPU fallback.
+    Kogge-Stone is the mathematically exact parallel implementation.
+    """
+    torch.manual_seed(11)
+    B, n, K = 4, 64, 16
+    alpha   = torch.rand(B, n, K).clamp(0.1, 0.9)
+    drive_r = torch.randn(B, n, K)
+    drive_i = torch.randn(B, n, K)
+
+    r_r_ks, r_i_ks     = parallel_resonance_scan(alpha, drive_r, drive_i)
+    r_r_seq, r_i_seq   = sequential_resonance_scan(alpha, drive_r, drive_i)
+    r_r_ch, r_i_ch     = chunked_resonance_scan(alpha, drive_r, drive_i)
+
+    ks_err  = (r_r_ks - r_r_seq).abs().max().item()
+    ch_err  = (r_r_ch - r_r_seq).abs().max().item()
+
+    # Kogge-Stone must be within 1e-4 of sequential (numerically exact parallel scan)
+    assert ks_err < 1e-4, f"KS vs sequential r_r max diff: {ks_err:.2e}"
+    # Kogge-Stone must be more accurate than chunked
+    assert ks_err < ch_err, \
+        f"KS err {ks_err:.2e} not less than chunked err {ch_err:.2e}"
+
+
+def test_kogge_stone_shape():
+    """parallel_resonance_scan must return tensors of input shape."""
+    B, n, K = 3, 128, 32
+    alpha   = torch.rand(B, n, K).clamp(0.1, 0.9)
+    drive_r = torch.randn(B, n, K)
+    drive_i = torch.randn(B, n, K)
+
+    r_r, r_i = parallel_resonance_scan(alpha, drive_r, drive_i)
+
+    assert r_r.shape == (B, n, K)
+    assert r_i.shape == (B, n, K)
+
+
+def test_kogge_stone_non_power_of_two():
+    """Kogge-Stone must handle sequence lengths that are not powers of 2."""
+    torch.manual_seed(12)
+    for n in [1, 2, 3, 5, 7, 10, 17, 100, 200]:
+        B, K = 2, 4
+        alpha   = torch.rand(B, n, K).clamp(0.1, 0.9)
+        drive_r = torch.randn(B, n, K)
+        drive_i = torch.randn(B, n, K)
+
+        r_r_ks, r_i_ks   = parallel_resonance_scan(alpha, drive_r, drive_i)
+        r_r_seq, r_i_seq  = sequential_resonance_scan(alpha, drive_r, drive_i)
+
+        assert torch.allclose(r_r_ks, r_r_seq, atol=1e-4), \
+            f"n={n}: r_r max diff: {(r_r_ks - r_r_seq).abs().max():.2e}"
+        assert torch.allclose(r_i_ks, r_i_seq, atol=1e-4), \
+            f"n={n}: r_i max diff: {(r_i_ks - r_i_seq).abs().max():.2e}"
+
+
+def test_kogge_stone_autograd():
+    """Kogge-Stone must be autograd-compatible (no in-place ops)."""
+    torch.manual_seed(13)
+    B, n, K = 2, 16, 4
+    alpha   = torch.rand(B, n, K).clamp(0.1, 0.9).requires_grad_(True)
+    drive_r = torch.randn(B, n, K).requires_grad_(True)
+    drive_i = torch.randn(B, n, K).requires_grad_(True)
+
+    r_r, r_i = parallel_resonance_scan(alpha, drive_r, drive_i)
+    loss = r_r.sum() + r_i.sum()
+    loss.backward()  # must not raise
+
+    assert alpha.grad is not None
+    assert drive_r.grad is not None
+    assert drive_i.grad is not None
+
+
+def test_kogge_stone_gradcheck():
+    """Gradient values must match numerical gradient (not just no-crash)."""
+    torch.manual_seed(99)
+    B, n, K = 1, 4, 2
+    alpha = torch.rand(B, n, K, dtype=torch.float64).clamp(0.2, 0.8).requires_grad_(True)
+    drive = torch.randn(B, n, K, dtype=torch.float64).requires_grad_(True)
+    assert torch.autograd.gradcheck(
+        lambda a, d: _kogge_stone_scan(a, d), (alpha, drive), eps=1e-6, atol=1e-4,
+    )
+
+
+def test_kogge_stone_alpha_zero():
+    """alpha=0: output[t] = drive[t] (no memory carry)."""
+    B, n, K = 2, 8, 4
+    alpha = torch.zeros(B, n, K)
+    drive_r = torch.randn(B, n, K)
+    drive_i = torch.randn(B, n, K)
+    r_r, r_i = parallel_resonance_scan(alpha, drive_r, drive_i)
+    assert torch.allclose(r_r, drive_r, atol=1e-5), f"max diff: {(r_r - drive_r).abs().max():.2e}"
+    assert torch.allclose(r_i, drive_i, atol=1e-5)
+
+
+def test_kogge_stone_alpha_one():
+    """alpha=1: output[t] = cumsum(drive)[t]."""
+    B, n, K = 1, 8, 2
+    alpha = torch.ones(B, n, K)
+    drive_r = torch.ones(B, n, K)
+    r_r, _ = parallel_resonance_scan(alpha, drive_r, torch.zeros(B, n, K))
+    expected = torch.arange(1, n + 1, dtype=torch.float32).view(1, n, 1).expand(B, n, K)
+    assert torch.allclose(r_r, expected, atol=1e-4), f"max diff: {(r_r - expected).abs().max():.2e}"
 
 
 # ---------------------------------------------------------------------------
