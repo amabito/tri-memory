@@ -1,0 +1,1 @@
+{"compiled_training_throughput":{"seq256":{"trn":153989,"tfm":160281,"ratio":0.96},"seq512":{"trn":158682,"tfm":159748,"ratio":0.99},"seq1024":{"trn":147159,"tfm":147944,"ratio":0.99},"note":"fwd+bwd+optim, torch.compile default mode, 100 steps each"}}
