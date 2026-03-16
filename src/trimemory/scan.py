@@ -145,10 +145,6 @@ def parallel_resonance_scan(
 
     No Triton/FLA dependency. Pure PyTorch tensor ops.
     7-28x faster than chunked scan depending on sequence length.
-
-    # NOTE: torch.associative_scan (PyTorch experimental) was the previous
-    # implementation but is not available on sm_120 (RTX 5090) + Windows.
-    # Kogge-Stone is a pure-tensor equivalent that works on any device.
     """
     alpha = alpha.float()
     drive_r = drive_r.float()
