@@ -1,0 +1,1 @@
+{"wall_time_ppl":{"trn_ppl":266.18,"tfm_ppl":341.11,"trn_wall_sec":54,"tfm_wall_sec":50,"trn_tps":151262,"tfm_tps":164916,"steps":2000,"seq_len":256,"note":"torch.compile default mode, 2000 training steps, wall-time PPL comparison"}}
