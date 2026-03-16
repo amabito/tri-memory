@@ -1,0 +1,1 @@
+{"training_throughput":{"trn":43983,"trn_compiled":154693,"tfm":110576,"tfm_compiled":166660,"compiled_ratio":0.93,"note":"fwd+bwd+optim, seq=256, bs=16, 200 steps"}}
