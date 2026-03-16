@@ -1,0 +1,39 @@
+{
+  "epochs": [
+    {
+      "epoch": 0,
+      "train_loss": 5.2189,
+      "val_ppl": 99.38,
+      "steps": 28929,
+      "time_sec": 729.0
+    },
+    {
+      "epoch": 1,
+      "train_loss": 4.7954,
+      "val_ppl": 90.3,
+      "steps": 28929,
+      "time_sec": 722.2
+    },
+    {
+      "epoch": 2,
+      "train_loss": 4.6841,
+      "val_ppl": 82.36,
+      "steps": 28929,
+      "time_sec": 721.9
+    }
+  ],
+  "config": {
+    "model": "TriMemoryEngine",
+    "d_model": 384,
+    "n_oscillators": 128,
+    "n_layers": 4,
+    "window_size": 64,
+    "chunk_size": 32,
+    "retrieval_top_k": 4,
+    "n_params": 45689570
+  },
+  "final": {
+    "best_val_ppl": 82.36,
+    "total_time_min": 36.2
+  }
+}
