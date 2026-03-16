@@ -184,13 +184,13 @@ def main() -> None:
     seq_len = 256
     batch_size = 32 if vocab_size == 256 else 16
 
-    # 3b: d=256 + 1 attention layer -- test short-range bottleneck
+    # Exp 4: d=384 + 1 attention layer (combine 3a+3b)
     cfg = TRNConfig(
         vocab_size=vocab_size,
-        d_model=256,
-        n_oscillators=128,
+        d_model=384,
+        n_oscillators=192,
         n_layers=4,
-        d_ff=1024,
+        d_ff=1536,
         max_seq_len=seq_len,
         gate_bias_init=0.65,
         state_norm=True,

@@ -9,48 +9,48 @@
   "epochs": [
     {
       "epoch": 0,
-      "train_loss": 6.8865,
-      "val_ppl": 575.13,
-      "grad_norm": 0.9791,
+      "train_loss": 6.8854,
+      "val_ppl": 573.7,
+      "grad_norm": 0.9821,
       "lr": 0.0001,
-      "time_sec": 131.5,
-      "vram_mb": 5220.0
+      "time_sec": 62.0,
+      "vram_mb": 6068.0
     },
     {
       "epoch": 1,
-      "train_loss": 5.9882,
-      "val_ppl": 399.16,
-      "grad_norm": 0.9083,
+      "train_loss": 5.9843,
+      "val_ppl": 396.47,
+      "grad_norm": 0.9089,
       "lr": 0.0002,
-      "time_sec": 128.7,
-      "vram_mb": 5220.0
+      "time_sec": 60.8,
+      "vram_mb": 6068.0
     }
   ],
   "final": {
-    "best_val_ppl": 399.16,
-    "total_time_sec": 260.2,
-    "peak_vram_mb": 5220.0
+    "best_val_ppl": 396.47,
+    "total_time_sec": 122.8,
+    "peak_vram_mb": 6068.0
   },
   "diagnostics": {
     "alpha_mean": [
       0.6496,
       0.6504,
       null,
-      0.653,
-      0.653,
+      0.6532,
       0.6533,
+      0.6536,
       null,
-      0.6538
+      0.6544
     ],
     "res_scale": [
-      0.116008,
-      0.075446,
+      0.115459,
+      0.075234,
       null,
-      0.179944,
-      0.194153,
-      0.199072,
+      0.16923,
+      0.186581,
+      0.195147,
       null,
-      0.199749
+      0.196013
     ],
     "layer_type": [
       "TRN",
