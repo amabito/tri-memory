@@ -2,27 +2,83 @@
   "epochs": [
     {
       "epoch": 0,
-      "train_loss": 5.0,
-      "val_ppl": 85.12,
+      "train_loss": 5.0014,
+      "val_ppl": 84.79,
       "steps": 28929,
-      "time_sec": 5971.4,
-      "tok_per_sec": 19843.0
+      "time_sec": 6415.7,
+      "tok_per_sec": 18469.0
     },
     {
       "epoch": 1,
-      "train_loss": 4.576,
-      "val_ppl": 76.22,
+      "train_loss": 4.5764,
+      "val_ppl": 74.99,
       "steps": 28929,
-      "time_sec": 6067.0,
-      "tok_per_sec": 19531.0
+      "time_sec": 6375.5,
+      "tok_per_sec": 18586.0
     },
     {
       "epoch": 2,
-      "train_loss": 4.4342,
-      "val_ppl": 67.27,
+      "train_loss": 4.5102,
+      "val_ppl": 72.17,
       "steps": 28929,
-      "time_sec": 5828.9,
-      "tok_per_sec": 20329.0
+      "time_sec": 6433.1,
+      "tok_per_sec": 18419.0
+    },
+    {
+      "epoch": 3,
+      "train_loss": 4.4703,
+      "val_ppl": 72.98,
+      "steps": 28929,
+      "time_sec": 6467.5,
+      "tok_per_sec": 18321.0
+    },
+    {
+      "epoch": 4,
+      "train_loss": 4.4464,
+      "val_ppl": 69.39,
+      "steps": 28929,
+      "time_sec": 6471.5,
+      "tok_per_sec": 18310.0
+    },
+    {
+      "epoch": 5,
+      "train_loss": 4.4028,
+      "val_ppl": 67.19,
+      "steps": 28929,
+      "time_sec": 6479.4,
+      "tok_per_sec": 18288.0
+    },
+    {
+      "epoch": 6,
+      "train_loss": 4.3563,
+      "val_ppl": 63.2,
+      "steps": 28929,
+      "time_sec": 6287.3,
+      "tok_per_sec": 18847.0
+    },
+    {
+      "epoch": 7,
+      "train_loss": 4.3047,
+      "val_ppl": 60.51,
+      "steps": 28929,
+      "time_sec": 8221.4,
+      "tok_per_sec": 14413.0
+    },
+    {
+      "epoch": 8,
+      "train_loss": 4.2651,
+      "val_ppl": 57.55,
+      "steps": 28929,
+      "time_sec": 9623.7,
+      "tok_per_sec": 12313.0
+    },
+    {
+      "epoch": 9,
+      "train_loss": 4.2313,
+      "val_ppl": 55.79,
+      "steps": 28929,
+      "time_sec": 6527.7,
+      "tok_per_sec": 18152.0
     }
   ],
   "config": {
@@ -34,7 +90,7 @@
     "data": "wikitext103"
   },
   "final": {
-    "best_val_ppl": 67.27,
-    "total_time_min": 297.8
+    "best_val_ppl": 55.79,
+    "total_time_min": 1155.0
   }
 }
