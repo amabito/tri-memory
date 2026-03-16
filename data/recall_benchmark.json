@@ -1,0 +1,12 @@
+{
+  "TRN-hybrid": {
+    "params": 5285382,
+    "associative_recall": 0.016,
+    "copy": 0.0157
+  },
+  "TriMemoryEngine": {
+    "params": 4073361,
+    "associative_recall": 0.014,
+    "copy": 0.0134
+  }
+}
