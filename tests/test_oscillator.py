@@ -89,10 +89,18 @@ def test_omega_base_requires_grad(layer: OscillatorProjection) -> None:
 
 
 def test_gate_bias_default(layer: OscillatorProjection) -> None:
-    """With zero linear weights, alpha approx sigmoid(1.73) ≈ 0.85 (slow decay)."""
+    """With zero linear weights, alpha reflects multi-scale group biases.
+
+    Fast group (K//4):   alpha_center=0.30
+    Medium group (K//2): alpha_center=0.65
+    Slow group (K//4):   alpha_center=0.97
+
+    Weighted mean = (0.30*(K//4) + 0.65*(K//2) + 0.97*(K//4)) / K
+    """
     cfg = TRNConfig.toy()
-    osc = OscillatorProjection(d_model=cfg.d_model, K=cfg.n_oscillators)
-    # Zero out all weights — only bias contributes
+    K = cfg.n_oscillators
+    osc = OscillatorProjection(d_model=cfg.d_model, K=K)
+    # Zero out all weights -- only bias contributes
     with torch.no_grad():
         osc.proj.weight.zero_()
 
@@ -100,9 +108,17 @@ def test_gate_bias_default(layer: OscillatorProjection) -> None:
     with torch.no_grad():
         _, _, _, alpha, _, _ = osc(x)
 
-    # gate_bias_init=0.65: sigmoid(0.619) ~ 0.65
-    expected = torch.tensor(0.65)
+    # Compute expected weighted mean from group sizes
+    n_fast   = K // 4
+    n_medium = K // 2
+    n_slow   = K - n_fast - n_medium
+    expected_mean = (0.30 * n_fast + 0.65 * n_medium + 0.97 * n_slow) / K
+    expected = torch.tensor(expected_mean, dtype=torch.float32)
     torch.testing.assert_close(alpha.mean(), expected, atol=1e-3, rtol=1e-3)
+
+    # Verify range: slow group may reach 0.97 but nothing above it
+    assert alpha.max().item() < 0.975, f"max alpha = {alpha.max().item():.4f}, too high"
+    assert alpha.min().item() > 0.25, f"min alpha = {alpha.min().item():.4f}, too low"
 
 
 # ---------------------------------------------------------------------------

@@ -155,10 +155,11 @@ class HybridModel(nn.Module):
     def configure_optimizer_param_groups(
         self,
         weight_decay: float = 0.1,
+        base_lr: float = 3e-4,
     ) -> list[dict]:
-        """Split parameters into weight-decay and no-decay groups."""
+        """Split parameters into weight-decay, no-decay, and slow-lr groups."""
         from .utils import configure_optimizer_param_groups
-        return configure_optimizer_param_groups(self, weight_decay)
+        return configure_optimizer_param_groups(self, weight_decay, base_lr)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
         """Count trainable parameters, optionally excluding the embedding table."""

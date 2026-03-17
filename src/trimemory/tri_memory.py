@@ -148,16 +148,17 @@ class TriMemoryBlock(nn.Module):
             gate_bias_init=cfg.gate_bias_init,
             phase_mode=cfg.phase_mode,
             scan_chunk_size=cfg.scan_chunk_size,
+            res_warmup_steps=cfg.res_warmup_steps,
         )
         self.trn_out_norm = build_rms_norm(cfg.d_model)
 
-        # 3-way gate: g = softmax([g_kv, g_trn, g_ret])
-        self.gate_proj = nn.Linear(cfg.d_model, 3, bias=True)
-        nn.init.normal_(self.gate_proj.weight, std=0.01)
-        # Gate bias: zeros (baseline default)
-        # Fix B gate bias=[0,0.2,0] reverted -- ineffective in Fix C post-world.
-        # Bimodality is addressed by Fix D (LR warmup 300 steps).
-        nn.init.zeros_(self.gate_proj.bias)
+        # Independent sigmoid gates -- no sum-to-1 constraint (replaces 3-way softmax)
+        self.gate_kv = nn.Linear(cfg.d_model, 1, bias=True)
+        self.gate_trn = nn.Linear(cfg.d_model, 1, bias=True)
+        self.gate_ret = nn.Linear(cfg.d_model, 1, bias=True)
+        nn.init.zeros_(self.gate_kv.bias)
+        nn.init.zeros_(self.gate_trn.bias)
+        nn.init.zeros_(self.gate_ret.bias)
 
         # Retrieval projection: project retrieved chunk mean to d_model
         self.ret_proj = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
@@ -312,24 +313,19 @@ class TriMemoryBlock(nn.Module):
         else:
             ret_out = None
 
-        # 3-way gated sum with masking for disabled paths
-        # NOTE: gate_logits are computed from pre-norm h, while trn_out has an
-        # additional trn_out_norm applied. This asymmetry is intentional -- the gate
-        # sees the pre-attention representation, while TRN output is separately normalized.
-        gate_logits = self.gate_proj(h)  # (B, T, 3)
-        # Additive mask: compile-friendly (no clone, no torch.finfo)
-        if not self.enable_trn or not self.enable_retrieval:
-            neg_inf = float("-inf")
-            mask = torch.zeros(3, device=gate_logits.device, dtype=gate_logits.dtype)
-            if not self.enable_trn:
-                mask[1] = neg_inf
-            if not self.enable_retrieval:
-                mask[2] = neg_inf
-            gate_logits = gate_logits + mask
-        gates = torch.softmax(gate_logits, dim=-1)  # (B, T, 3)
-        g_kv = gates[:, :, 0:1]    # (B, T, 1)
-        g_trn = gates[:, :, 1:2]
-        g_ret = gates[:, :, 2:3]
+        # Independent sigmoid gates (no sum-to-1 constraint).
+        # NOTE: gates are computed from pre-norm h, while trn_out has an additional
+        # trn_out_norm applied. This asymmetry is intentional -- the gate sees the
+        # pre-attention representation, while TRN output is separately normalized.
+        g_kv = torch.sigmoid(self.gate_kv(h))    # (B, T, 1)
+        g_trn = torch.sigmoid(self.gate_trn(h))  # (B, T, 1)
+        g_ret = torch.sigmoid(self.gate_ret(h))  # (B, T, 1)
+
+        # Zero disabled paths (compile-friendly: no clone, no finfo)
+        if not self.enable_trn or trn_out is None:
+            g_trn = torch.zeros_like(g_kv)
+        if not self.enable_retrieval or ret_out is None:
+            g_ret = torch.zeros_like(g_kv)
 
         # Gate telemetry: skip during torch.compile to avoid graph break
         _is_compiling = False
@@ -338,7 +334,12 @@ class TriMemoryBlock(nn.Module):
         except AttributeError:
             pass
         if not _is_compiling:
-            self._last_gates = gates.detach().mean(dim=(0, 1))  # (3,)
+            # Store per-gate sigmoid means: shape (3,) matching old _last_gates layout
+            self._last_gates = torch.stack([
+                g_kv.detach().mean(),
+                g_trn.detach().mean(),
+                g_ret.detach().mean(),
+            ])
 
         # Gated sum -- only add terms that are active
         mixed = g_kv * attn_out
@@ -771,7 +772,8 @@ class TriMemoryEngine(nn.Module):
         if query_mode == "marker" and query_pos is not None and query_pos < T:
             query_emb = self.query_proj(x[:, query_pos, :])  # (B, d_model)
         else:
-            query_emb = x[:, -self.window_size:, :].mean(dim=1)  # (B, d_model)
+            raw_query = x[:, -self.window_size:, :].mean(dim=1)  # (B, d_model)
+            query_emb = self.query_proj(raw_query)  # (B, d_model) -- learned projection
 
         # Cosine similarity: (B, n_chunks)
         q_norm = F.normalize(query_emb, dim=-1).unsqueeze(1)  # (B, 1, d_model)
@@ -960,9 +962,10 @@ class TriMemoryEngine(nn.Module):
     def configure_optimizer_param_groups(
         self,
         weight_decay: float = 0.1,
+        base_lr: float = 3e-4,
     ) -> list[dict]:
         from trimemory.utils import configure_optimizer_param_groups
-        return configure_optimizer_param_groups(self, weight_decay)
+        return configure_optimizer_param_groups(self, weight_decay, base_lr)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
         from trimemory.utils import num_parameters

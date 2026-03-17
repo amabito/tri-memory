@@ -66,10 +66,14 @@ class TestAlphaInit:
         for name, param in model.named_parameters():
             if "proj.bias" in name:
                 K = param.shape[0] // 6
-                gate_bias = param.data[3 * K : 5 * K]
-                alpha_vals = torch.sigmoid(gate_bias)
-                # No oscillator should start above 0.95
-                assert alpha_vals.max().item() < 0.95, (
+                # Check only the alpha logits [3K:4K]; [4K:5K] is g_out (separate gate).
+                alpha_bias = param.data[3 * K : 4 * K]
+                alpha_vals = torch.sigmoid(alpha_bias)
+                # Multi-scale groups: fast=0.30, medium=0.65, slow=0.97.
+                # Allow up to 0.975 -- slow group is intentionally near-1 for long
+                # memory spans (~33 steps), but must not fully saturate (sigmoid never
+                # reaches 1.0, so 0.975 is a safe ceiling well below saturation).
+                assert alpha_vals.max().item() < 0.975, (
                     f"{name}: max alpha = {alpha_vals.max().item():.3f}, too close to 1.0"
                 )
 

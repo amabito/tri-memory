@@ -41,6 +41,7 @@ class TemporalResonanceLayer(nn.Module):
         gate_bias_init: float = 0.65,
         phase_mode: str = "log",
         scan_chunk_size: int = 64,
+        res_warmup_steps: int = 1000,
     ) -> None:
         super().__init__()
         self.K = K
@@ -50,6 +51,7 @@ class TemporalResonanceLayer(nn.Module):
         self.resonance_clamp_val = resonance_clamp_val
         self.state_norm_enabled = state_norm
         self.phase_mode = phase_mode
+        self._res_warmup_steps = res_warmup_steps
 
         self.proj = OscillatorProjection(
             d_model, K,
@@ -64,6 +66,8 @@ class TemporalResonanceLayer(nn.Module):
 
         # Learnable scalar that multiplies the resonance delta before residual add
         self.res_scale = nn.Parameter(torch.tensor(res_scale_init))
+        # Warmup counter: incremented each training forward pass (compile-friendly)
+        self.register_buffer("_forward_count", torch.tensor(0, dtype=torch.long))
 
     def _apply_state_norm(self, r_r: Tensor, r_i: Tensor) -> tuple[Tensor, Tensor]:
         """Complex modulus normalization: r /= max(|r|, 1.0).
@@ -155,8 +159,19 @@ class TemporalResonanceLayer(nn.Module):
         # Output gate (GLA-style): selective readout, repeated for Re+Im channels
         rho = g_out.to(rho.dtype).repeat(1, 1, 2) * rho
 
-        # P0-A: apply learnable res_scale before projection
-        return self.res_scale * self.W_res(rho)  # (B, n, d_model)
+        # P0-A: apply learnable res_scale with smoothstep warmup before projection.
+        # Warmup is training-only: during eval the full scale is applied immediately.
+        # Compile-friendly: no .item() call, no Python branch on tensor value.
+        if self.training:
+            self._forward_count += 1
+            if self._res_warmup_steps > 0:
+                warmup_t = (self._forward_count.float() / self._res_warmup_steps).clamp(max=1.0)
+                warmup_factor: float | Tensor = warmup_t * warmup_t * (3.0 - 2.0 * warmup_t)
+            else:
+                warmup_factor = 1.0
+        else:
+            warmup_factor = 1.0
+        return (self.res_scale * warmup_factor) * self.W_res(rho)  # (B, n, d_model)
 
     @torch.no_grad()
     def step_single(
@@ -244,6 +259,6 @@ class TemporalResonanceLayer(nn.Module):
         g_out_2k = g_out_t.to(rho.dtype).repeat(1, 2)
         rho = g_out_2k * rho
 
-        # P0-A: apply learnable res_scale
+        # P0-A: apply learnable res_scale (no warmup during inference)
         out = (self.res_scale * self.W_res(rho)).to(input_dtype)
         return out, r_real, r_imag

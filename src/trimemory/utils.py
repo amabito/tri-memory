@@ -56,21 +56,28 @@ def num_parameters(model: nn.Module, non_embedding: bool = True) -> int:
 def configure_optimizer_param_groups(
     model: nn.Module,
     weight_decay: float = 0.1,
+    base_lr: float = 3e-4,
 ) -> list[dict]:
-    """Split parameters into decay / no-decay groups.
+    """Split parameters into decay / no-decay / slow-lr groups.
 
-    No-decay: omega_base, res_scale, biases, norms, embeddings.
+    Groups:
+    - decay:    weight matrices -- weight_decay applied, full LR
+    - no_decay: biases, norms, embeddings -- no weight decay, full LR
+    - slow_lr:  omega_base, res_scale -- no weight decay, 0.1x LR
+                (these are oscillator frequency/scale params that benefit
+                from slower updates to avoid destabilizing learned frequencies)
     """
     decay: set[str] = set()
     no_decay: set[str] = set()
+    slow_lr: set[str] = set()
 
     for name, param in model.named_parameters():
         if not param.requires_grad:
             continue
-        if (
-            "omega_base" in name
-            or "res_scale" in name
-            or name.endswith(".bias")
+        if "omega_base" in name or "res_scale" in name:
+            slow_lr.add(name)
+        elif (
+            name.endswith(".bias")
             or "norm" in name.lower()
             or "embedding" in name
             or "embed" in name
@@ -80,7 +87,16 @@ def configure_optimizer_param_groups(
             decay.add(name)
 
     params = {n: p for n, p in model.named_parameters() if p.requires_grad}
-    return [
+    groups: list[dict] = [
         {"params": [params[n] for n in sorted(decay)], "weight_decay": weight_decay},
         {"params": [params[n] for n in sorted(no_decay)], "weight_decay": 0.0},
     ]
+    if slow_lr:
+        groups.append(
+            {
+                "params": [params[n] for n in sorted(slow_lr)],
+                "weight_decay": 0.0,
+                "lr": base_lr * 0.1,
+            }
+        )
+    return groups

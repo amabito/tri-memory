@@ -101,10 +101,14 @@ class TransformerModel(nn.Module):
             result["loss"] = loss
         return result
 
-    def configure_optimizer_param_groups(self, weight_decay: float) -> list[dict]:
+    def configure_optimizer_param_groups(
+        self,
+        weight_decay: float = 0.1,
+        base_lr: float = 3e-4,
+    ) -> list[dict]:
         """Separate weight_decay params from no-decay (biases, norms, embeddings)."""
         from .utils import configure_optimizer_param_groups
-        return configure_optimizer_param_groups(self, weight_decay)
+        return configure_optimizer_param_groups(self, weight_decay, base_lr)
 
     def num_parameters(self, non_embedding: bool = True) -> int:
         from .utils import num_parameters

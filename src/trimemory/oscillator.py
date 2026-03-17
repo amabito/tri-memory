@@ -43,14 +43,26 @@ class OscillatorProjection(nn.Module):
     def _init_weights(self, gate_bias_init: float = 0.65) -> None:
         nn.init.normal_(self.proj.weight, std=self.proj.in_features ** -0.5)
         nn.init.zeros_(self.proj.bias)
-        # Gate bias: sigmoid(b) = target  =>  b = log(target / (1 - target))
-        # gate_bias_init=0.85 was the old default (sigmoid(1.73)~0.85).
-        # P0 stabilization uses 0.65 => sigmoid(0.619)~0.65 for gentler decay.
+        # Alpha (decay gate) logits at [3K:4K] -- multi-scale groups:
+        #   Fast   (K//4):  alpha_center=0.30, ~1.4-step memory span
+        #   Medium (K//2):  alpha_center=0.65, ~2.9-step memory span
+        #   Slow   (K//4):  alpha_center=0.97, ~33-step memory span
+        # Gate bias formula: sigmoid(b) = c  =>  b = log(c / (1 - c))
+        K = self.K
+        group_sizes = [K // 4, K // 2, K - K // 4 - K // 2]
+        alpha_centers = [0.30, 0.65, 0.97]
+        offset = 3 * K
+        for n_k, alpha_c in zip(group_sizes, alpha_centers):
+            alpha_c_clamped = max(0.01, min(0.99, alpha_c))
+            bias_val = math.log(alpha_c_clamped / (1.0 - alpha_c_clamped))
+            self.proj.bias.data[offset : offset + n_k].fill_(bias_val)
+            offset += n_k
+        # Output gate (g_out) at [4K:5K]: keep gate_bias_init default (0.65)
         gate_bias_init_clamped = max(0.01, min(0.99, gate_bias_init))
-        bias_val = math.log(gate_bias_init_clamped / (1.0 - gate_bias_init_clamped))
-        self.proj.bias.data[3 * self.K : 5 * self.K].fill_(bias_val)
+        g_out_bias = math.log(gate_bias_init_clamped / (1.0 - gate_bias_init_clamped))
+        self.proj.bias.data[4 * K : 5 * K].fill_(g_out_bias)
         # Beta (erase gate) init: sigmoid(-2) ~ 0.12, weak erase at start
-        self.proj.bias.data[5 * self.K :].fill_(-2.0)
+        self.proj.bias.data[5 * K :].fill_(-2.0)
 
     def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         """

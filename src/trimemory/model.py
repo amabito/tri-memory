@@ -158,10 +158,12 @@ class TRNModel(nn.Module):
     def configure_optimizer_param_groups(
         self,
         weight_decay: float = 0.1,
+        base_lr: float = 3e-4,
     ) -> list[dict]:
-        """Split parameters into decay / no-decay groups.
+        """Split parameters into decay / no-decay / slow-lr groups.
 
-        omega_base and all bias / norm parameters are excluded from weight decay.
+        omega_base and res_scale get 0.1x LR (slow_lr group).
+        Biases, norms, and embeddings are excluded from weight decay.
         """
         from .utils import configure_optimizer_param_groups
-        return configure_optimizer_param_groups(self, weight_decay)
+        return configure_optimizer_param_groups(self, weight_decay, base_lr)
