@@ -1,0 +1,63 @@
+{
+  "epochs": [
+    {
+      "epoch": 0,
+      "val_ppl": 99.5,
+      "time_sec": 530.7
+    },
+    {
+      "epoch": 1,
+      "val_ppl": 90.8,
+      "time_sec": 449.6
+    },
+    {
+      "epoch": 2,
+      "val_ppl": 88.53,
+      "time_sec": 455.6
+    },
+    {
+      "epoch": 3,
+      "val_ppl": 87.93,
+      "time_sec": 455.9
+    },
+    {
+      "epoch": 4,
+      "val_ppl": 85.02,
+      "time_sec": 444.4
+    },
+    {
+      "epoch": 5,
+      "val_ppl": 82.48,
+      "time_sec": 444.5
+    },
+    {
+      "epoch": 6,
+      "val_ppl": 80.01,
+      "time_sec": 444.6
+    },
+    {
+      "epoch": 7,
+      "val_ppl": 76.87,
+      "time_sec": 446.5
+    },
+    {
+      "epoch": 8,
+      "val_ppl": 75.53,
+      "time_sec": 456.9
+    },
+    {
+      "epoch": 9,
+      "val_ppl": 73.58,
+      "time_sec": 450.6
+    }
+  ],
+  "recall": {
+    "pairs_4": 0.028,
+    "pairs_8": 0.022,
+    "pairs_16": 0.036
+  },
+  "final": {
+    "best_val_ppl": 73.58,
+    "total_time_min": 76.3
+  }
+}
