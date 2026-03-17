@@ -162,6 +162,10 @@ class TemporalResonanceLayer(nn.Module):
         # P0-A: apply learnable res_scale with smoothstep warmup before projection.
         # Warmup is training-only: during eval the full scale is applied immediately.
         # Compile-friendly: no .item() call, no Python branch on tensor value.
+        # NOTE: _forward_count counts per-layer forward() calls, not optimizer steps.
+        # For an N-layer model, res_warmup_steps=1000 means ~1000/N optimizer steps.
+        # WARNING: _forward_count buffer mutation is incompatible with CUDA graphs.
+        # Use torch.compile without CUDA graphs, or set res_warmup_steps=0.
         if self.training:
             self._forward_count += 1
             if self._res_warmup_steps > 0:

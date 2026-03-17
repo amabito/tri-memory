@@ -96,7 +96,7 @@ def configure_optimizer_param_groups(
             {
                 "params": [params[n] for n in sorted(slow_lr)],
                 "weight_decay": 0.0,
-                "lr": base_lr * 0.1,
+                "lr": base_lr * 0.1,  # IMPORTANT: base_lr must match optimizer global LR
             }
         )
     return groups

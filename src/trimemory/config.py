@@ -26,7 +26,7 @@ class TRNConfig:
     gate_bias_init:      float = 0.65    # sigmoid(0.619) ~ 0.65; P0 stabilization default
     phase_mode:          str   = "log"   # "log" = omega*log(i+1), "linear" = omega*i
     scan_chunk_size:     int   = 64     # chunk size for chunked_resonance_scan
-    res_warmup_steps:    int   = 1000   # smoothstep warmup for res_scale (0 = disabled)
+    res_warmup_steps:    int   = 1000   # smoothstep warmup for res_scale (per-layer forward calls, not optimizer steps; 0=disabled)
 
     @property
     def d_ff_hidden(self) -> int:
