@@ -42,9 +42,11 @@ class TemporalResonanceLayer(nn.Module):
         phase_mode: str = "log",
         scan_chunk_size: int = 64,
         res_warmup_steps: int = 1000,
+        use_scpm: bool = True,
     ) -> None:
         super().__init__()
         self.K = K
+        self.use_scpm = use_scpm
         self.use_parallel_scan = use_parallel_scan
         self.scan_chunk_size = scan_chunk_size
         self.clamp_resonance = clamp_resonance
@@ -60,9 +62,20 @@ class TemporalResonanceLayer(nn.Module):
         )
 
         # W_res projects demodulated Re+Im (2K) to d_model.
-        # Using both Re and Im doubles state information utilization.
-        self.W_res = nn.Linear(2 * K, d_model, bias=False)
+        # With SCPM enabled, cross-product terms expand input to 4K-2.
+        # Using both Re and Im (and their cross-products) maximizes state
+        # information utilization.
+        w_res_in = (4 * K - 2) if use_scpm else (2 * K)
+        self.W_res = nn.Linear(w_res_in, d_model, bias=False)
         nn.init.normal_(self.W_res.weight, std=2e-3)
+
+        # PCG (Phase-Coupled Gating): modulates each channel by phase alignment
+        # with a learned query. lambda_pcg starts small so PCG is initially a
+        # near-constant gate of 0.5 (sigmoid(0)) -- no-op at init.
+        self.W_phase = nn.Linear(d_model, K, bias=True)
+        nn.init.normal_(self.W_phase.weight, std=1e-3)
+        nn.init.zeros_(self.W_phase.bias)
+        self.lambda_pcg = nn.Parameter(torch.tensor(0.1))
 
         # Learnable scalar that multiplies the resonance delta before residual add
         self.res_scale = nn.Parameter(torch.tensor(res_scale_init))
@@ -155,9 +168,59 @@ class TemporalResonanceLayer(nn.Module):
         sin_a = sin_angle.to(r_r.dtype)
         rho_re = r_r * cos_a + r_i * sin_a         # (B, n, K)
         rho_im = -r_r * sin_a + r_i * cos_a        # (B, n, K)
-        rho = torch.cat([rho_re, rho_im], dim=-1)  # (B, n, 2K)
-        # Output gate (GLA-style): selective readout, repeated for Re+Im channels
-        rho = g_out.to(rho.dtype).repeat(1, 1, 2) * rho
+
+        # Technique D: PCG (Phase-Coupled Gating)
+        # Modulates each channel by cosine similarity between the normalized
+        # complex state phase and a learned query phase. lambda_pcg starts at
+        # 0.1 so the initial gate is near 0.5 (sigmoid(0.1*cosine)) -- almost
+        # no-op, allowing the other params to warm up first.
+        rho_norm = (rho_re.pow(2) + rho_im.pow(2) + 1e-8).sqrt()  # (B, n, K)
+        rho_re_n = rho_re / rho_norm   # unit-circle Re component
+        rho_im_n = rho_im / rho_norm   # unit-circle Im component
+        phase_query = self.W_phase(x)  # (B, n, K) -- raw, not normalized
+        cos_pq = torch.cos(phase_query)
+        sin_pq = torch.sin(phase_query)
+        # Dot product of unit state phasor with query phasor: in [-1, +1]
+        phase_alignment = rho_re_n * cos_pq + rho_im_n * sin_pq  # (B, n, K)
+        phase_gate = torch.sigmoid(self.lambda_pcg * phase_alignment)  # (B, n, K)
+        rho_re = phase_gate * rho_re
+        rho_im = phase_gate * rho_im
+
+        # Technique C: SCPM (Spectral Cross-Product Mixing)
+        # Computes complex cross-products between frequency-adjacent oscillator
+        # channels. This captures inter-frequency coupling (beat frequencies,
+        # quadrature mixing) that the base demodulation cannot express.
+        # Cross-product of complex numbers c_k * c_{k+1}:
+        #   Re part = Re_k*Re_{k+1} - Im_k*Im_{k+1}
+        #   Im part = Re_k*Im_{k+1} + Im_k*Re_{k+1}
+        if self.use_scpm:
+            xcross_re = (
+                rho_re[:, :, :-1] * rho_re[:, :, 1:]
+                - rho_im[:, :, :-1] * rho_im[:, :, 1:]
+            )  # (B, n, K-1)
+            xcross_im = (
+                rho_re[:, :, :-1] * rho_im[:, :, 1:]
+                + rho_im[:, :, :-1] * rho_re[:, :, 1:]
+            )  # (B, n, K-1)
+
+            # Gate for base Re+Im channels (same as before, repeated for each)
+            g = g_out.to(rho_re.dtype)         # (B, n, K)
+            rho_base = torch.cat([rho_re, rho_im], dim=-1)  # (B, n, 2K)
+            g_base = g.repeat(1, 1, 2)          # (B, n, 2K)
+
+            # Gate for cross-product channels: mean of adjacent oscillator gates
+            g_cross = (g[:, :, :-1] + g[:, :, 1:]) / 2.0  # (B, n, K-1)
+            xcross = torch.cat([xcross_re, xcross_im], dim=-1)  # (B, n, 2(K-1))
+            g_cross_full = g_cross.repeat(1, 1, 2)             # (B, n, 2(K-1))
+
+            # Augmented: [rho_re, rho_im, xcross_re, xcross_im] -> (B, n, 4K-2)
+            rho = torch.cat(
+                [g_base * rho_base, g_cross_full * xcross], dim=-1
+            )
+        else:
+            # SCPM disabled: original 2K path
+            rho = torch.cat([rho_re, rho_im], dim=-1)  # (B, n, 2K)
+            rho = g_out.to(rho.dtype).repeat(1, 1, 2) * rho
 
         # P0-A: apply learnable res_scale with smoothstep warmup before projection.
         # Warmup is training-only: during eval the full scale is applied immediately.
@@ -258,10 +321,45 @@ class TemporalResonanceLayer(nn.Module):
         # Demodulate: Re + Im
         rho_re = r_real_demod * cos_a + r_imag_demod * sin_a   # (B, K)
         rho_im = -r_real_demod * sin_a + r_imag_demod * cos_a  # (B, K)
-        rho = torch.cat([rho_re, rho_im], dim=-1)              # (B, 2K)
-        # Output gate (GLA-style): selective readout from state
-        g_out_2k = g_out_t.to(rho.dtype).repeat(1, 2)
-        rho = g_out_2k * rho
+
+        # PCG: apply phase-coupled gate (simplified single-step version)
+        # x_single is (B, d_model); W_phase expects this shape directly.
+        rho_norm_s = (rho_re.pow(2) + rho_im.pow(2) + 1e-8).sqrt()
+        rho_re_n_s = rho_re / rho_norm_s
+        rho_im_n_s = rho_im / rho_norm_s
+        phase_query_s = self.W_phase(x_single.to(proj_dtype))  # (B, K)
+        cos_pq_s = torch.cos(phase_query_s)
+        sin_pq_s = torch.sin(phase_query_s)
+        phase_align_s = rho_re_n_s * cos_pq_s + rho_im_n_s * sin_pq_s  # (B, K)
+        phase_gate_s = torch.sigmoid(self.lambda_pcg * phase_align_s)   # (B, K)
+        rho_re = phase_gate_s * rho_re
+        rho_im = phase_gate_s * rho_im
+
+        # SCPM in step_single: cross-products are over the channel dimension,
+        # not the sequence dimension, so they can be computed per-step exactly
+        # as in forward(). This preserves numerical equivalence with forward(n=1).
+        if self.use_scpm:
+            xcross_re_s = (
+                rho_re[:, :-1] * rho_re[:, 1:]
+                - rho_im[:, :-1] * rho_im[:, 1:]
+            )  # (B, K-1)
+            xcross_im_s = (
+                rho_re[:, :-1] * rho_im[:, 1:]
+                + rho_im[:, :-1] * rho_re[:, 1:]
+            )  # (B, K-1)
+            g = g_out_t.to(rho_re.dtype)               # (B, K)
+            rho_base = torch.cat([rho_re, rho_im], dim=-1)   # (B, 2K)
+            g_base = g.repeat(1, 2)                    # (B, 2K)
+            g_cross_s = (g[:, :-1] + g[:, 1:]) / 2.0  # (B, K-1)
+            xcross_s = torch.cat([xcross_re_s, xcross_im_s], dim=-1)  # (B, 2(K-1))
+            g_cross_full_s = g_cross_s.repeat(1, 2)   # (B, 2(K-1))
+            rho = torch.cat(
+                [g_base * rho_base, g_cross_full_s * xcross_s], dim=-1
+            )  # (B, 4K-2)
+        else:
+            rho = torch.cat([rho_re, rho_im], dim=-1)         # (B, 2K)
+            g_out_2k = g_out_t.to(rho.dtype).repeat(1, 2)
+            rho = g_out_2k * rho
 
         # P0-A: apply learnable res_scale (no warmup during inference)
         out = (self.res_scale * self.W_res(rho)).to(input_dtype)

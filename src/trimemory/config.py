@@ -28,6 +28,9 @@ class TRNConfig:
     scan_chunk_size:     int   = 64     # chunk size for chunked_resonance_scan
     res_warmup_steps:    int   = 1000   # smoothstep warmup for res_scale (per-layer forward calls, not optimizer steps; 0=disabled)
 
+    # --- Novel techniques ---
+    use_scpm:            bool  = True    # Spectral Cross-Product Mixing: adjacent-freq cross terms (4K-2 W_res input)
+
     @property
     def d_ff_hidden(self) -> int:
         """Actual hidden dim for SwiGLU gate/up projections.
