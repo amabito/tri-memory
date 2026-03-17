@@ -1,0 +1,1 @@
+{"100m_scaling":{"params":"107.4M","epochs":3,"ppl":[74.38,64.81,55.99],"time_min":56,"tok_per_sec":109000,"vram_gb":6.3,"note":"TriMemoryEngine compiled, WT-103, bs=16"}}
