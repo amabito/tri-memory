@@ -1,0 +1,1 @@
+{"recall_focused_training":{"transformer":{"step500":1.0,"step1000":1.0,"step2000":1.0,"step3000":1.0},"trimemory_engine":{"step500":0.014,"step1000":0.232,"step2000":0.999,"step3000":1.0},"config":"last-position loss only, vocab=64, 8 KV pairs"}}
