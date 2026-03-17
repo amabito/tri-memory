@@ -1,0 +1,23 @@
+{
+  "1024": {
+    "trn_ppl": 248.03,
+    "tfm_ppl": 200.19,
+    "trn_tps": 86993,
+    "tfm_tps": 162162,
+    "tps_ratio": 0.54
+  },
+  "2048": {
+    "trn_ppl": 202.02,
+    "tfm_ppl": 165.47,
+    "trn_tps": 80075,
+    "tfm_tps": 128955,
+    "tps_ratio": 0.62
+  },
+  "4096": {
+    "trn_ppl": 219.15,
+    "tfm_ppl": 205.03,
+    "trn_tps": 97056,
+    "tfm_tps": 99808,
+    "tps_ratio": 0.97
+  }
+}
