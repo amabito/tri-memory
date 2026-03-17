@@ -40,7 +40,7 @@ class TemporalResonanceLayer(nn.Module):
         res_scale_init: float = 0.05,
         gate_bias_init: float = 0.65,
         phase_mode: str = "log",
-        scan_chunk_size: int = 16,
+        scan_chunk_size: int = 64,
     ) -> None:
         super().__init__()
         self.K = K
@@ -124,9 +124,9 @@ class TemporalResonanceLayer(nn.Module):
         # DeltaNet's targeted memory overwriting. The erase gate beta controls
         # how much of the current-frequency readout is removed from state.
         beta_f = beta.float()
-        readout = r_r * cos_angle.float() + r_i * sin_angle.float()  # (B, n, K)
-        erase_r = beta_f * readout * cos_angle.float()
-        erase_i = beta_f * readout * sin_angle.float()
+        readout = r_r * cos_angle + r_i * sin_angle  # (B, n, K) -- cos/sin already fp32
+        erase_r = beta_f * readout * cos_angle
+        erase_i = beta_f * readout * sin_angle
         r_r = r_r - erase_r
         r_i = r_i - erase_i
 
@@ -145,23 +145,14 @@ class TemporalResonanceLayer(nn.Module):
         r_r = r_r.to(x.dtype)
         r_i = r_i.to(x.dtype)
 
-        # Demodulate: project resonance onto the local carrier.
-        cos_a = cos_angle.to(x.dtype)
-        sin_a = sin_angle.to(x.dtype)
         # Demodulate: extract both Re and Im of r * exp(-j*angle).
-        # Re = r_r*cos + r_i*sin (in-phase), Im = -r_r*sin + r_i*cos (quadrature).
-        # Using both doubles state information utilization without changing recurrence.
+        cos_a = cos_angle.to(r_r.dtype)
+        sin_a = sin_angle.to(r_r.dtype)
         rho_re = r_r * cos_a + r_i * sin_a         # (B, n, K)
         rho_im = -r_r * sin_a + r_i * cos_a        # (B, n, K)
         rho = torch.cat([rho_re, rho_im], dim=-1)  # (B, n, 2K)
-        # Output gate (GLA-style): selective readout from state
-        g_out_2k = g_out.to(rho.dtype).repeat(1, 1, 2) if rho.size(-1) == 2 * g_out.size(-1) else g_out.to(rho.dtype)
-        rho = g_out_2k * rho
-
-        # Debug: store rho for NaN tracing (detached, no graph impact)
-        if getattr(self, "_debug_trace", False):
-            self._debug_last_rho = rho.detach()
-            self._debug_last_W_res_out = self.W_res(rho).detach()
+        # Output gate (GLA-style): selective readout, repeated for Re+Im channels
+        rho = g_out.to(rho.dtype).repeat(1, 1, 2) * rho
 
         # P0-A: apply learnable res_scale before projection
         return self.res_scale * self.W_res(rho)  # (B, n, d_model)

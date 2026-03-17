@@ -61,24 +61,19 @@ class SafeCumprod(torch.autograd.Function):
         grad_sum = torch.flip(
             torch.cumsum(torch.flip(grad_weighted, [dim]), dim=dim), [dim],
         )
-        # Guard against division by zero. The 1e-30 floor is below float32 subnormal range,
-        # so this only activates for exact-zero alpha. For near-zero alpha, the NaN/Inf
-        # cleanup below handles gradient explosion.
-        grad_input = grad_sum / alpha.clamp(min=1e-30)
+        # Guard against near-zero alpha: clamp to 1e-6 to prevent gradient explosion.
+        # (Previously 1e-30 which only caught exact zero but let 1e-7 produce 1e20 gradients)
+        grad_input = grad_sum / alpha.clamp(min=1e-6)
 
-        # Known limitation: when multiple consecutive alpha values are near-zero,
-        # gradient signal is lost for preceding elements (spuriously zero).
-        # This is acceptable because near-zero alpha means the state is intentionally
-        # "reset" -- gradient through reset points is not meaningful.
-
-        # Zero out NaN/Inf (no GPU-CPU sync needed)
+        # Zero out NaN/Inf unconditionally (no .any() -- avoids graph break under torch.compile)
         nonfinite_mask = ~torch.isfinite(grad_input)
-        if nonfinite_mask.any():
-            grad_input = torch.where(nonfinite_mask, torch.zeros_like(grad_input), grad_input)
+        grad_input = torch.where(nonfinite_mask, torch.zeros_like(grad_input), grad_input)
 
         # Stats collection (disabled by default -- each .item() forces GPU-CPU sync)
         if _STATS_ENABLED:
-            max_abs_before = grad_input.abs().max().item()
+            # Note: max_abs_before is measured post-cleanup; for pre-cleanup stats,
+            # save grad_sum / alpha before the where() above.
+            max_abs_before = grad_input.nan_to_num(nan=0.0, posinf=1e30, neginf=-1e30).abs().max().item()
             n_nonfinite = nonfinite_mask.sum().item()
             max_abs_after = grad_input.abs().max().item()
             with _safe_cumprod_lock:
@@ -195,9 +190,9 @@ def _scan_chunk(
     scaled_drive = drive_chunk / safe_alpha_cum
     drive_contrib = torch.cumsum(scaled_drive, dim=1) * alpha_cum
     # For positions where alpha_cum < 1e-6, override with near-zero contribution
+    # Override small-alpha positions unconditionally (no .any() -- avoids graph break)
     small_alpha = alpha_cum < 1e-6
-    if small_alpha.any():
-        drive_contrib = torch.where(small_alpha, drive_chunk * alpha_cum, drive_contrib)
+    drive_contrib = torch.where(small_alpha, drive_chunk * alpha_cum, drive_contrib)
 
     chunk_out = prev_contrib + drive_contrib  # (B, C, K)
     r_final = chunk_out[:, -1]  # (B, K)

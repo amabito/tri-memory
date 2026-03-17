@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from math import pi
 
 import torch
@@ -45,7 +46,6 @@ class OscillatorProjection(nn.Module):
         # Gate bias: sigmoid(b) = target  =>  b = log(target / (1 - target))
         # gate_bias_init=0.85 was the old default (sigmoid(1.73)~0.85).
         # P0 stabilization uses 0.65 => sigmoid(0.619)~0.65 for gentler decay.
-        import math
         gate_bias_init_clamped = max(0.01, min(0.99, gate_bias_init))
         bias_val = math.log(gate_bias_init_clamped / (1.0 - gate_bias_init_clamped))
         self.proj.bias.data[3 * self.K : 5 * self.K].fill_(bias_val)
