@@ -114,6 +114,9 @@ class TRNModel(nn.Module):
             B, max_new_tokens, dtype=torch.long, device=device,
         )
 
+        # Pre-compute k outside loop -- vocab_size is constant across steps.
+        k = min(top_k, self.cfg.vocab_size)
+
         for step in range(max_new_tokens):
             pos = prompt_len + step
             token = prompt_ids[:, -1] if step == 0 else all_ids[:, step - 1]
@@ -138,7 +141,7 @@ class TRNModel(nn.Module):
             if temperature != 1.0:
                 logit = logit / temperature
             if top_k > 0:
-                top_vals, _ = torch.topk(logit, min(top_k, logit.size(-1)))
+                top_vals, _ = torch.topk(logit, k)
                 logit[logit < top_vals[:, -1:]] = float("-inf")
 
             probs    = torch.softmax(logit, dim=-1)

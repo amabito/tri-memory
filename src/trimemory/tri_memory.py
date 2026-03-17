@@ -33,6 +33,7 @@ Limitations:
 """
 from __future__ import annotations
 
+import warnings
 from collections import deque
 from typing import Optional
 
@@ -47,7 +48,7 @@ from trimemory.memory_mediator import MemoryMediator
 from trimemory.memory_packet import CompactMemoryPacket
 from trimemory.resonance import TemporalResonanceLayer
 from trimemory.retrieval import RetrievalIndex
-from trimemory.router import RuleBasedMemoryRouter, RouterDecision
+from trimemory.router import RuleBasedMemoryRouter
 from trimemory.saliency import SaliencyArchiver
 from trimemory.selective_memory_messenger import SelectiveMemoryMessenger
 from trimemory.utils import build_rms_norm, build_sinusoidal_pe
@@ -180,11 +181,8 @@ class TriMemoryBlock(nn.Module):
             return cached
         row = torch.arange(T, device=device).unsqueeze(1)
         col = torch.arange(T, device=device).unsqueeze(0)
-        mask = torch.where(
-            (col <= row) & (col >= row - W + 1),
-            torch.tensor(0.0, device=device),
-            torch.tensor(float("-inf"), device=device),
-        )
+        mask = torch.full((T, T), float("-inf"), device=device)
+        mask.masked_fill_((col <= row) & (col >= row - W + 1), 0.0)
         if len(self._window_mask_cache) >= self._MASK_CACHE_MAX:
             # Evict oldest entry
             oldest_key = next(iter(self._window_mask_cache))
@@ -209,11 +207,8 @@ class TriMemoryBlock(nn.Module):
         k_pos = torch.arange(T_kv, device=device) + (offset + T_q - T_kv)  # absolute key positions
         q_pos = q_pos.unsqueeze(1)  # (T_q, 1)
         k_pos = k_pos.unsqueeze(0)  # (1, T_kv)
-        mask = torch.where(
-            (k_pos <= q_pos) & (k_pos >= q_pos - W + 1),
-            torch.tensor(0.0, device=device),
-            torch.tensor(float("-inf"), device=device),
-        )
+        mask = torch.full((T_q, T_kv), float("-inf"), device=device)
+        mask.masked_fill_((k_pos <= q_pos) & (k_pos >= q_pos - W + 1), 0.0)
         return mask  # (T_q, T_kv)
 
     def forward(
@@ -485,8 +480,6 @@ class TriMemoryEngine(nn.Module):
         # Eviction buffer
         self._eviction_buffer: deque[int] = deque(maxlen=chunk_size * 2)
         self._global_step: int = 0
-        _ROUTER_LOG_MAX = 1024
-        self._router_log: deque[RouterDecision] = deque(maxlen=_ROUTER_LOG_MAX)
 
         self._init_weights()
 
@@ -536,7 +529,11 @@ class TriMemoryEngine(nn.Module):
             self._last_packet = None
             return None
 
-        # Compute query_hidden from embedding mean for hidden/hybrid modes
+        # Compute query_hidden from embedding mean for hidden/hybrid modes.
+        # NOTE: A fresh embedding lookup is used here rather than reusing forward()'s
+        # hidden states because _get_retrieval_context is called from forward_with_memory()
+        # where intermediate per-layer hiddens are not yet available at query time.
+        # This is intentional -- query from raw tokens, consistent across call sites.
         query_hidden = None
         if self.search_mode in ("hidden", "hybrid"):
             with torch.no_grad():
@@ -617,7 +614,6 @@ class TriMemoryEngine(nn.Module):
                 At each seq_pos in the logits, add alpha * copy_logits[:, chunk_token_idx, :].
         """
         if retrieval_temperature is not None:
-            import warnings
             warnings.warn(
                 "retrieval_temperature is deprecated, use retrieval_sharpness",
                 DeprecationWarning, stacklevel=2,
@@ -722,7 +718,6 @@ class TriMemoryEngine(nn.Module):
               context_tokens: (B, chunk_size, d_model) or None -- prefix tokens
         """
         if retrieval_temperature is not None:
-            import warnings
             warnings.warn(
                 "retrieval_temperature is deprecated, use retrieval_sharpness",
                 DeprecationWarning, stacklevel=2,
@@ -882,7 +877,6 @@ class TriMemoryEngine(nn.Module):
         # Update TRN states using per-layer hidden states (matches training path)
         # Retrieval index is shared (not per-sample) -- only batch[0] tokens are indexed.
         if input_ids.size(0) > 1 and not self._batch_warned:
-            import warnings
             warnings.warn(
                 "forward_with_memory processes only batch[0] for retrieval index. "
                 "Use batch_size=1 for correct retrieval behavior.",
@@ -961,7 +955,6 @@ class TriMemoryEngine(nn.Module):
         self.retrieval_index.reset()
         self._eviction_buffer.clear()
         self._global_step = 0
-        self._router_log.clear()
         self._last_packet = None
 
     def configure_optimizer_param_groups(

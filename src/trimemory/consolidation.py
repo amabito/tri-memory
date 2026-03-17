@@ -95,8 +95,10 @@ class ReplayConsolidator:
         top_k = max(1, budget // 2)
         selected = sorted_chunks[:top_k]
 
-        # Bottom half by random sample (exploration)
-        remaining = [c for c in all_chunks if c not in selected]
+        # Bottom half by random sample (exploration).
+        # Use id-based set lookup -- O(1) per check vs O(n) list `not in`.
+        selected_ids = {id(c) for c in selected}
+        remaining = [c for c in all_chunks if id(c) not in selected_ids]
         random_k = budget - len(selected)
         if remaining and random_k > 0:
             sampled = self._rng.sample(remaining, min(random_k, len(remaining)))

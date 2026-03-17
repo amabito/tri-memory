@@ -135,6 +135,7 @@ class TemporalResonanceLayer(nn.Module):
             r_r, r_i = self._apply_state_norm(r_r, r_i)
 
         # Legacy L2 norm clamping (behind flag, default off)
+        # Deprecated: superseded by state_norm. Retained for ablation reproducibility.
         if self.clamp_resonance:
             state_norm = (r_r.pow(2) + r_i.pow(2)).sqrt().clamp(min=1e-8)
             scale = (state_norm / self.resonance_clamp_val).clamp(min=1.0)

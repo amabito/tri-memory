@@ -356,26 +356,18 @@ class TestDequeBoundary:
             f"_eviction_buffer exceeded maxlen: {len(engine._eviction_buffer)} > {maxlen_expected}"
         )
 
-    def test_router_log_bounded_at_1024(self) -> None:
-        """_router_log must stay bounded at its declared maxlen=1024."""
-        from trimemory.router import RouterDecision
+    def test_router_log_removed(self) -> None:
+        """_router_log was dead code (never written by forward()) and has been removed.
+
+        Regression guard: ensure the attribute no longer exists on TriMemoryEngine.
+        """
         cfg = TRNConfig.toy()
         engine = TriMemoryEngine(
             cfg, window_size=32, chunk_size=16,
             enable_trn=False, enable_retrieval=False,
         )
-        # Inject synthetic RouterDecision objects directly
-        for i in range(1200):
-            engine._router_log.append(
-                RouterDecision(
-                    g_kv=0.0,
-                    g_trn=0.0,
-                    g_ret=1.0,
-                    reason="test",
-                )
-            )
-        assert len(engine._router_log) == 1024, (
-            f"_router_log exceeded 1024: {len(engine._router_log)}"
+        assert not hasattr(engine, "_router_log"), (
+            "_router_log was re-introduced; it is dead code and should remain removed"
         )
 
 

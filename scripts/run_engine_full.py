@@ -17,8 +17,8 @@ torch.set_float32_matmul_precision("high")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from trimemory.config import TRNConfig
-from trimemory.tri_memory import TriMemoryEngine
+from trimemory.config import TRNConfig  # noqa: E402
+from trimemory.tri_memory import TriMemoryEngine  # noqa: E402
 
 
 def load_packed(path: str) -> torch.Tensor:
@@ -60,31 +60,13 @@ def train_epoch(model, data, seq_len, bs, optimizer, device):
             continue
         ids = torch.cat(batch).to(device)
         optimizer.zero_grad()
-        model(ids, labels=ids)["loss"].backward()
+        loss = model(ids, labels=ids)["loss"]
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
-        total_loss += model(ids, labels=ids)["loss"].item() if n_steps == 0 else total_loss
+        total_loss += loss.item()
         n_steps += 1
-    # Recompute avg loss properly
-    model.eval()
-    sample_loss = 0.0
-    with torch.inference_mode():
-        count = 0
-        for i in range(0, min(500 * bs, len(indices) - bs), bs):
-            batch = []
-            for idx in indices[i : i + bs]:
-                off = idx.item() * seq_len
-                if off + seq_len + 1 > n_tokens:
-                    continue
-                batch.append(data[off : off + seq_len].unsqueeze(0))
-            if len(batch) < bs:
-                continue
-            ids = torch.cat(batch).to(device)
-            sample_loss += model(ids, labels=ids)["loss"].item()
-            count += 1
-            if count >= 50:
-                break
-    return sample_loss / max(count, 1), n_steps
+    return total_loss / max(n_steps, 1), n_steps
 
 
 @torch.inference_mode()
@@ -132,6 +114,7 @@ def main():
     n_params = sum(p.numel() for p in model.parameters())
     print(f"TriMemoryEngine: {n_params:,} params (3-tier)")
 
+    # Note: epoch 0 includes torch.compile compilation overhead.
     model = torch.compile(model)
 
     param_groups = model.configure_optimizer_param_groups(weight_decay=0.1)
@@ -160,6 +143,8 @@ def main():
         ep_start = time.perf_counter()
         _, n_steps = train_epoch(model, train_data, seq_len, bs, optimizer, device)
         val_ppl = evaluate(model, val_data, seq_len, bs, device)
+        if device == "cuda":
+            torch.cuda.synchronize()
         ep_time = time.perf_counter() - ep_start
 
         marker = " *" if val_ppl < best_ppl else ""
@@ -167,6 +152,8 @@ def main():
         results["epochs"].append({"epoch": ep, "val_ppl": round(val_ppl, 2), "time_sec": round(ep_time, 1)})
         print(f"{ep:3d} | {val_ppl:8.2f} | {ep_time/60:5.1f}m{marker}")
 
+    if device == "cuda":
+        torch.cuda.synchronize()
     total_time = time.perf_counter() - t0
     print(f"\nBest PPL: {best_ppl:.2f}, Total: {total_time/60:.1f} min")
 
@@ -181,7 +168,7 @@ def main():
 
     with open("data/engine_full_results.json", "w") as f:
         json.dump(results, f, indent=2)
-    print(f"\nSaved to data/engine_full_results.json")
+    print("\nSaved to data/engine_full_results.json")
 
 
 if __name__ == "__main__":

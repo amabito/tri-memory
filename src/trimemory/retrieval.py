@@ -53,10 +53,12 @@ class RetrievalIndex:
         vocab_size: int,
         max_chunks: int = 256,
         d_model: int = 128,
+        use_token_bag: bool = True,
     ) -> None:
         self.vocab_size = vocab_size
         self.max_chunks = max_chunks
         self.d_model = d_model
+        self.use_token_bag = use_token_bag
         self._chunks: deque[ChunkRecord] = deque(maxlen=max_chunks)
         self._next_id: int = 0
 
@@ -87,7 +89,7 @@ class RetrievalIndex:
 
         If at capacity, evicts the oldest (lowest chunk_id) entry.
         """
-        token_bag = self._make_token_bag(token_ids)
+        token_bag = self._make_token_bag(token_ids) if self.use_token_bag else None
 
         record = ChunkRecord(
             chunk_id=self._next_id,
@@ -164,13 +166,16 @@ class RetrievalIndex:
         # Convert deque to list for O(1) index access during scoring
         chunks_snapshot = list(self._chunks)
 
-        query_bag = self._make_token_bag(query_token_ids)
         use_hidden = mode in ("hidden", "hybrid") and query_hidden is not None
-        use_bag = mode in ("bag", "hybrid")
+        # Bag computation is skipped when use_token_bag=False (no bag vectors stored)
+        use_bag = mode in ("bag", "hybrid") and self.use_token_bag
+        query_bag = self._make_token_bag(query_token_ids) if use_bag else None
 
-        # Fallback: if hidden mode requested but no query_hidden, use bag
-        if mode == "hidden" and query_hidden is None:
+        # Fallback: if hidden mode requested but no query_hidden, use bag (if available)
+        if mode == "hidden" and query_hidden is None and self.use_token_bag:
             use_bag = True
+            if query_bag is None:
+                query_bag = self._make_token_bag(query_token_ids)
 
         scored: list[tuple[float, float, float, int]] = []
         for idx, chunk in enumerate(chunks_snapshot):
@@ -179,7 +184,7 @@ class RetrievalIndex:
             if use_hidden:
                 h_score = self._hidden_cosine(query_hidden, chunk)
             if use_bag or mode == "bag":
-                if chunk.token_bag is not None:
+                if chunk.token_bag is not None and query_bag is not None:
                     b_score = torch.dot(query_bag, chunk.token_bag).item()
 
             if mode == "hybrid":

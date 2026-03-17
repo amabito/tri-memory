@@ -152,7 +152,7 @@ class TransformerLM(nn.Module):
         for name, param in self.named_parameters():
             if not param.requires_grad:
                 continue
-            if name.endswith(".weight") and "norm" not in name and "emb" not in name:
+            if name.endswith(".weight") and "norm" not in name and "emb" not in name and name != "lm_head.weight":
                 decay.add(name)
             else:
                 no_decay.add(name)
@@ -291,6 +291,8 @@ def main():
             model, train_data, seq_len, bs, optimizer, device, max_steps=max_steps,
         )
         val_ppl = evaluate(model, val_data, seq_len, bs, device)
+        if device == "cuda":
+            torch.cuda.synchronize()
         ep_time = time.perf_counter() - ep_start
         tok_per_sec = n_steps * bs * seq_len / ep_time
 
@@ -306,6 +308,8 @@ def main():
         print(f"{ep:5d} | {train_loss:10.4f} | {val_ppl:10.2f} | "
               f"{n_steps:8d} | {ep_time/60:7.1f}m | {tok_per_sec:7.0f}{marker}")
 
+    if device == "cuda":
+        torch.cuda.synchronize()
     total_time = time.perf_counter() - t0
     results["final"] = {
         "best_val_ppl": round(best_val_ppl, 2),

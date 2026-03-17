@@ -96,6 +96,8 @@ def _combine(
 ) -> tuple[Tensor, Tensor]:
     """Associative combine for the first-order linear recurrence s_t = a_t*s_{t-1} + b_t.
 
+    Reference implementation -- _kogge_stone_scan inlines this for performance.
+
     Monoid element (a, b) represents: s = a * s_prev + b.
     Composition law: (a2, b2) o (a1, b1) = (a2*a1,  a2*b1 + b2).
 

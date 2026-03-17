@@ -269,6 +269,8 @@ def run_experiment(
             model, train_data, seq_len, bs, optimizer, device
         )
         val_ppl = evaluate_val(model, val_data, seq_len, bs, device)
+        if device == "cuda":
+            torch.cuda.synchronize()
         ep_time = time.perf_counter() - ep_start
 
         vram = 0.0
@@ -306,6 +308,8 @@ def run_experiment(
             print(f"Early stop at epoch {ep} (3 epochs < 1% improvement)")
             break
 
+    if device == "cuda":
+        torch.cuda.synchronize()
     total_time = time.perf_counter() - t0
 
     # Diagnostics
