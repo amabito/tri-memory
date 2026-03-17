@@ -67,16 +67,20 @@ class Trainer:
         """Run training loop. Returns per-step loss history."""
         cfg = self.cfg
         device = cfg.device
+        use_pin = cfg.device != "cpu"
         loader = DataLoader(
             self.train_dataset,
             batch_size=cfg.batch_size,
             shuffle=True,
             drop_last=True,
+            num_workers=4,
+            pin_memory=use_pin,
+            persistent_workers=True,
         )
         data_iter = cycle(loader)
 
         self.model.train()
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
 
         while self.step < cfg.max_steps:
             # Apply LR schedule before the optimizer step
@@ -98,7 +102,7 @@ class Trainer:
             # Clip gradients and update
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.grad_clip)
             self.optimizer.step()
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
 
             self.loss_history.append(accum_loss)
 
@@ -154,7 +158,7 @@ class SimpleTrainer:
 
         self.model = TRNModel(cfg).to(device)
         param_groups = self.model.configure_optimizer_param_groups(weight_decay=weight_decay)
-        self.optimizer = torch.optim.AdamW(param_groups, lr=lr)
+        self.optimizer = torch.optim.AdamW(param_groups, lr=lr, betas=(0.9, 0.95))
         # max_steps will be updated before each run
         self.scheduler = CosineWithWarmup(
             self.optimizer,
@@ -166,8 +170,7 @@ class SimpleTrainer:
 
     def _train_step(self, input_ids: torch.Tensor) -> float:
         """Run one forward + backward + optimizer step. Returns loss value."""
-        self.model.train()
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
         # model.forward applies causal shift internally (shift_labels = labels[:,1:]).
         # Pass input_ids as labels so targets = input_ids[:,1:] (correct GPT-style).
         ids = input_ids.to(self.device)
@@ -223,6 +226,8 @@ class SimpleTrainer:
             data_path,
             seq_len=self.cfg.max_seq_len,
             batch_size=batch_size,
+            num_workers=4,
+            pin_memory=self.device != "cpu",
             shuffle=True,
         )
         self.scheduler.max_steps = n_steps

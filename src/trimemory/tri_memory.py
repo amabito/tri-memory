@@ -167,12 +167,14 @@ class TriMemoryBlock(nn.Module):
         self.drop = (
             nn.Dropout(cfg.dropout) if cfg.dropout > 0.0 else nn.Identity()
         )
-        self._window_mask_cache: dict[tuple[int, int, str], Tensor] = {}
+        self._window_mask_cache: dict[tuple[int, int, str, int], Tensor] = {}
 
     _MASK_CACHE_MAX = 16
 
     def _make_window_mask(self, T: int, W: int, device: torch.device) -> Tensor:
-        cache_key = (T, W, str(device))
+        # Use device.type + index for stable cache key (avoids str(device) graph break)
+        dev_idx = device.index if device.index is not None else 0
+        cache_key = (T, W, device.type, dev_idx)
         cached = self._window_mask_cache.get(cache_key)
         if cached is not None:
             return cached
@@ -301,11 +303,11 @@ class TriMemoryBlock(nn.Module):
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, T, C)
         attn_out = self.attn.proj(attn_out)
 
-        # TRN (zero if disabled)
+        # TRN (skip entirely when disabled -- no zeros_like allocation)
         if self.enable_trn:
             trn_out = self.trn_out_norm(self.trn(h))
         else:
-            trn_out = torch.zeros_like(attn_out)
+            trn_out = None
 
         # Retrieval context (broadcast to all positions) -- pooled mode
         # In prefix mode, retrieval flows through attention, so ret_out = 0
@@ -313,28 +315,42 @@ class TriMemoryBlock(nn.Module):
             ret_out = self.ret_proj(retrieval_context)  # (B, d_model)
             ret_out = ret_out.unsqueeze(1).expand(B, T, C)  # (B, T, C)
         else:
-            ret_out = torch.zeros_like(attn_out)
+            ret_out = None
 
         # 3-way gated sum with masking for disabled paths
         # NOTE: gate_logits are computed from pre-norm h, while trn_out has an
         # additional trn_out_norm applied. This asymmetry is intentional -- the gate
         # sees the pre-attention representation, while TRN output is separately normalized.
         gate_logits = self.gate_proj(h)  # (B, T, 3)
+        # Additive mask: compile-friendly (no clone, no torch.finfo)
         if not self.enable_trn or not self.enable_retrieval:
-            gate_logits = gate_logits.clone()
+            neg_inf = float("-inf")
+            mask = torch.zeros(3, device=gate_logits.device, dtype=gate_logits.dtype)
             if not self.enable_trn:
-                gate_logits[:, :, 1] = torch.finfo(gate_logits.dtype).min
+                mask[1] = neg_inf
             if not self.enable_retrieval:
-                gate_logits[:, :, 2] = torch.finfo(gate_logits.dtype).min
+                mask[2] = neg_inf
+            gate_logits = gate_logits + mask
         gates = torch.softmax(gate_logits, dim=-1)  # (B, T, 3)
         g_kv = gates[:, :, 0:1]    # (B, T, 1)
         g_trn = gates[:, :, 1:2]
         g_ret = gates[:, :, 2:3]
 
-        # Store gate values for telemetry (detached, no memory leak)
-        self._last_gates = gates.detach().mean(dim=(0, 1))  # (3,)
+        # Gate telemetry: skip during torch.compile to avoid graph break
+        _is_compiling = False
+        try:
+            _is_compiling = torch.compiler.is_compiling()
+        except AttributeError:
+            pass
+        if not _is_compiling:
+            self._last_gates = gates.detach().mean(dim=(0, 1))  # (3,)
 
-        mixed = g_kv * attn_out + g_trn * trn_out + g_ret * ret_out
+        # Gated sum -- only add terms that are active
+        mixed = g_kv * attn_out
+        if trn_out is not None:
+            mixed = mixed + g_trn * trn_out
+        if ret_out is not None:
+            mixed = mixed + g_ret * ret_out
 
         x = x + self.drop(mixed)
         x = x + self.drop(self.ffn(self.norm2(x)))
@@ -406,8 +422,13 @@ class TriMemoryEngine(nn.Module):
         self.max_state_hints = max_state_hints
         self.max_source_refs = max_source_refs
         self.prefer_current = prefer_current
-        self._messenger = SelectiveMemoryMessenger()
-        self._mediator = MemoryMediator()
+        # Messenger/mediator are only allocated when the feature is active
+        if use_compact_memory_packet:
+            self._messenger: SelectiveMemoryMessenger | None = SelectiveMemoryMessenger()
+            self._mediator: MemoryMediator | None = MemoryMediator()
+        else:
+            self._messenger = None
+            self._mediator = None
         self._last_packet: CompactMemoryPacket | None = None
 
         self.embedding = nn.Embedding(cfg.vocab_size, cfg.d_model)
@@ -457,6 +478,8 @@ class TriMemoryEngine(nn.Module):
             threshold=saliency_threshold,
             vocab_size=cfg.vocab_size,
         )
+        # router is kept for external callers that inspect it, but it is not
+        # used inside forward() -- rule-based routing is handled by the gate.
         self.router = RuleBasedMemoryRouter(kv_window_size=window_size)
 
         # Eviction buffer
@@ -722,20 +745,32 @@ class TriMemoryEngine(nn.Module):
 
         # Build chunk embeddings: (B, n_chunks, d_model)
         # Also build per-token chunk matrix for prefix mode: (B, n_chunks, chunk_size, d_model)
-        chunk_embs = []
-        chunk_tokens_list = []
-        for cs in chunk_starts:
-            ce = min(cs + self.chunk_size, archive_end)
-            chunk_hidden = x[:, cs:ce, :]  # (B, actual_len, d_model)
-            chunk_embs.append(chunk_hidden.mean(dim=1))  # (B, d_model)
-            # Pad to chunk_size if needed
-            actual_len = ce - cs
-            if actual_len < self.chunk_size:
-                pad = torch.zeros(B, self.chunk_size - actual_len, C, device=x.device)
-                chunk_hidden = torch.cat([chunk_hidden, pad], dim=1)
-            chunk_tokens_list.append(chunk_hidden)  # (B, chunk_size, d_model)
-        chunk_matrix = torch.stack(chunk_embs, dim=1)  # (B, n_chunks, d_model)
-        chunk_tokens_matrix = torch.stack(chunk_tokens_list, dim=1)  # (B, n_chunks, chunk_size, d_model)
+        #
+        # Fast path: use tensor view+mean for full chunks (one kernel vs N Python iterations).
+        # A partial tail chunk (archive_end % chunk_size != 0) is handled separately.
+        n_full = archive_end // self.chunk_size
+        if n_full > 0:
+            archive_full = x[:, : n_full * self.chunk_size, :]  # (B, n_full*C_sz, d_model)
+            chunks_full = archive_full.view(B, n_full, self.chunk_size, C)
+            chunk_matrix_full = chunks_full.mean(dim=2)   # (B, n_full, d_model)
+            chunk_tokens_full = chunks_full                # (B, n_full, chunk_size, d_model)
+        else:
+            chunk_matrix_full = x.new_empty(B, 0, C)
+            chunk_tokens_full = x.new_empty(B, 0, self.chunk_size, C)
+
+        # Partial tail chunk (if archive_end is not a multiple of chunk_size)
+        tail_start = n_full * self.chunk_size
+        if tail_start < archive_end:
+            tail_hidden = x[:, tail_start:archive_end, :]  # (B, tail_len, d_model)
+            tail_len = archive_end - tail_start
+            chunk_emb_tail = tail_hidden.mean(dim=1).unsqueeze(1)  # (B, 1, d_model)
+            pad = torch.zeros(B, self.chunk_size - tail_len, C, device=x.device)
+            tail_tokens = torch.cat([tail_hidden, pad], dim=1).unsqueeze(1)  # (B, 1, chunk_size, d_model)
+            chunk_matrix = torch.cat([chunk_matrix_full, chunk_emb_tail], dim=1)   # (B, n_chunks, d_model)
+            chunk_tokens_matrix = torch.cat([chunk_tokens_full, tail_tokens], dim=1)  # (B, n_chunks, chunk_size, d_model)
+        else:
+            chunk_matrix = chunk_matrix_full
+            chunk_tokens_matrix = chunk_tokens_full
 
         # Query embedding
         if query_mode == "marker" and query_pos is not None and query_pos < T:

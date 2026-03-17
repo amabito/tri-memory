@@ -26,9 +26,8 @@ class PackedDataset(Dataset):
 
     def __init__(self, path: str | Path, seq_len: int) -> None:
         self.seq_len = seq_len
-        data = np.memmap(str(path), dtype=np.uint16, mode="r")
-        # Store as int32 for safety (torch doesn't have uint16)
-        self._data = torch.from_numpy(data.astype(np.int32))
+        # Keep as memmap on disk -- conversion deferred to __getitem__
+        self._data = np.memmap(str(path), dtype=np.uint16, mode="r")
 
     def __len__(self) -> int:
         # Each example needs seq_len+1 tokens; stride is seq_len
@@ -37,9 +36,10 @@ class PackedDataset(Dataset):
     def __getitem__(self, idx: int) -> dict[str, Tensor]:
         start = idx * self.seq_len
         chunk = self._data[start : start + self.seq_len + 1]
+        t = torch.from_numpy(chunk.astype(np.int64))
         return {
-            "input_ids": chunk[:-1].long(),
-            "labels": chunk[1:].long(),
+            "input_ids": t[:-1],
+            "labels": t[1:],
         }
 
 
@@ -47,7 +47,8 @@ def build_dataloader(
     path: str | Path,
     seq_len: int,
     batch_size: int,
-    num_workers: int = 0,
+    num_workers: int = 4,
+    pin_memory: bool = True,
     shuffle: bool = True,
 ) -> DataLoader:
     """Convenience function to build a DataLoader from a packed dataset."""
@@ -57,6 +58,7 @@ def build_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=False,
+        pin_memory=pin_memory,
         drop_last=True,
+        persistent_workers=num_workers > 0,
     )
