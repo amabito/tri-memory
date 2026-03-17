@@ -1,0 +1,1 @@
+{"math_v2":{"ppl":[95.71,86.97,79.83],"prev_ppl":[99.38,90.30,82.36],"improvement":-2.53,"time_per_epoch_min":8.4,"note":"multi-scale alpha, per-param LR, sigmoid gate, res_scale warmup, query_proj"}}
