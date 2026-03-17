@@ -149,6 +149,7 @@ class TriMemoryBlock(nn.Module):
             phase_mode=cfg.phase_mode,
             scan_chunk_size=cfg.scan_chunk_size,
             res_warmup_steps=cfg.res_warmup_steps,
+            use_scpm=cfg.use_scpm,
         )
         self.trn_out_norm = build_rms_norm(cfg.d_model)
 

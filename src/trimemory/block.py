@@ -55,6 +55,7 @@ class TRNBlock(nn.Module):
             gate_bias_init       = cfg.gate_bias_init,
             phase_mode           = cfg.phase_mode,
             scan_chunk_size      = cfg.scan_chunk_size,
+            use_scpm             = cfg.use_scpm,
         )
         self.ffn  = SwiGLU(cfg.d_model, cfg.d_ff_hidden)
         self.drop = (
