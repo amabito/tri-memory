@@ -1,0 +1,1 @@
+{"100m_comparison":{"trimemory_engine_46m":{"ppl":[99.38,90.30,82.36],"tok_per_sec":109000},"transformer_44m":{"ppl":[90.63,80.30,70.56],"tok_per_sec":187000},"transformer_61m":{"ppl":[83.31,72.76,62.77],"tok_per_sec":152000},"trimemory_engine_107m":{"ppl":[74.38,64.81,55.99],"tok_per_sec":109000},"note":"all compiled, WT-103, 3 epochs"}}
